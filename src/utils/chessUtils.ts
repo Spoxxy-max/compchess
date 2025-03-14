@@ -1,5 +1,4 @@
-
-import { ChessBoard, ChessPiece, ChessSquare, PieceColor, PieceType } from './chessTypes';
+import { ChessBoard, ChessPiece, ChessSquare, PieceColor, PieceType, TimeControl, TimeControlOption } from './chessTypes';
 
 export const createInitialBoard = (): ChessBoard => {
   const squares: ChessSquare[][] = Array(8)
@@ -240,9 +239,9 @@ export const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
 };
 
-export const timeControlOptions = [
-  { type: 'blitz', startTime: 3 * 60, increment: 2, label: 'Blitz - 3+2' },
-  { type: 'rapid', startTime: 10 * 60, increment: 5, label: 'Rapid - 10+5' },
-  { type: 'classical', startTime: 30 * 60, increment: 30, label: 'Classical - 30+30' },
-  { type: 'custom', startTime: 5 * 60, increment: 3, label: 'Custom' },
+export const timeControlOptions: TimeControl[] = [
+  { type: 'blitz' as TimeControlOption, startTime: 3 * 60, increment: 2, label: 'Blitz - 3+2' },
+  { type: 'rapid' as TimeControlOption, startTime: 10 * 60, increment: 5, label: 'Rapid - 10+5' },
+  { type: 'classical' as TimeControlOption, startTime: 30 * 60, increment: 30, label: 'Classical - 30+30' },
+  { type: 'custom' as TimeControlOption, startTime: 5 * 60, increment: 3, label: 'Custom' },
 ];

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import NewGameModal from '../components/NewGameModal';
 import JoinGameModal from '../components/JoinGameModal';
-import { TimeControl } from '../utils/chessTypes';
+import { TimeControl, TimeControlOption } from '../utils/chessTypes';
 import { timeControlOptions } from '../utils/chessUtils';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
