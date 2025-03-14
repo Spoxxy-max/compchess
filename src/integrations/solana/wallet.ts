@@ -1,4 +1,3 @@
-
 import { createContext, useContext } from 'react';
 
 // Wallet adapter interface
@@ -217,7 +216,7 @@ export const WalletContext = createContext<{
   wallet: WalletAdapter | null;
   connecting: boolean;
   availableWallets: { type: WalletType; name: string }[];
-  connectWallet: (type?: WalletType) => Promise<void>;
+  connectWallet: (type?: WalletType) => Promise<WalletAdapter | void>;
   disconnectWallet: () => Promise<void>;
   smartContractExecute: (method: string, params: any) => Promise<any>;
 }>({

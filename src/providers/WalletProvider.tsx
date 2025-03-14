@@ -30,7 +30,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
-  const connectWallet = async (type?: WalletType) => {
+  const connectWallet = async (type?: WalletType): Promise<WalletAdapter | void> => {
     if (connecting) return;
     
     try {
