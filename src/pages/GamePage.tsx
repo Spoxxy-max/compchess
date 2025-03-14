@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import Header from '@/components/Header';
+import { useWallet } from '../integrations/solana/wallet';
 
 interface GamePageProps {
   gameId?: string;
@@ -28,6 +30,7 @@ const GamePage: React.FC<GamePageProps> = ({
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const { wallet } = useWallet();
   
   // Get state from router if available
   useEffect(() => {
@@ -108,8 +111,24 @@ const GamePage: React.FC<GamePageProps> = ({
     return () => clearInterval(timer);
   }, [timeControl, stake, toast]);
 
+  const handleNewGame = () => {
+    // placeholder for new game functionality
+    toast({
+      title: "Coming Soon",
+      description: "This feature is not yet implemented",
+    });
+  };
+  
+  const handleJoinGame = () => {
+    // placeholder for join game functionality
+    toast({
+      title: "Coming Soon",
+      description: "This feature is not yet implemented",
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
       {/* Background elements for futuristic look */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-solana/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-solana/15 rounded-full blur-[100px]" />
@@ -117,18 +136,23 @@ const GamePage: React.FC<GamePageProps> = ({
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(9,9,11,0.05)_0.1px,transparent_0.1px),linear-gradient(to_right,rgba(9,9,11,0.05)_0.1px,transparent_0.1px)] bg-[size:24px_24px] opacity-20" />
       
-      <div className="container px-4 mx-auto py-4 sm:py-8">
+      <Header
+        onNewGame={handleNewGame}
+        onJoinGame={handleJoinGame}
+      />
+      
+      <div className="container px-4 mx-auto py-4 sm:py-8 flex-1 flex flex-col">
         <Button 
           variant="ghost" 
           size="sm" 
-          className="mb-4 flex items-center gap-2"
+          className="mb-4 flex items-center gap-2 self-start"
           onClick={() => navigate('/')}
         >
           <ArrowLeft size={16} />
           Back to Home
         </Button>
         
-        <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8`}>
+        <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8 items-center justify-center flex-1`}>
           <div className={`${isMobile ? 'w-full' : 'flex-1'} flex justify-center items-start`}>
             <ChessBoard 
               playerColor={playerColor}

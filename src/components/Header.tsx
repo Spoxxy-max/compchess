@@ -2,24 +2,29 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
+import { useWallet } from '../integrations/solana/wallet';
+import { Loader2 } from 'lucide-react';
 
 interface HeaderProps {
   onNewGame: () => void;
   onJoinGame: () => void;
-  isLoggedIn: boolean;
-  onConnectWallet: () => void;
-  walletBalance?: number;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
   onNewGame, 
   onJoinGame, 
-  isLoggedIn, 
-  onConnectWallet,
-  walletBalance 
 }) => {
+  const { wallet, connecting, connectWallet, disconnectWallet } = useWallet();
+  
+  const isLoggedIn = wallet?.connected;
+  const walletBalance = wallet?.balance;
+
+  const handleConnectWallet = () => {
+    connectWallet();
+  };
+  
   return (
-    <header className="w-full py-4">
+    <header className="w-full py-4 border-b border-border/30 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
       <div className="container px-4 mx-auto flex justify-between items-center">
         <Link to="/" className="text-2xl font-bold">
           <span className="text-white">Comp</span>
@@ -31,7 +36,7 @@ const Header: React.FC<HeaderProps> = ({
             <>
               <div className="flex items-center gap-2">
                 <div className="px-3 py-1 bg-secondary rounded-md flex items-center">
-                  <span className="text-sm font-semibold">{walletBalance || 0} SOL</span>
+                  <span className="text-sm font-semibold">{walletBalance?.toFixed(2) || 0} SOL</span>
                 </div>
                 <Button 
                   onClick={onNewGame}
@@ -45,14 +50,29 @@ const Header: React.FC<HeaderProps> = ({
                 >
                   Join Game
                 </Button>
+                <Button
+                  onClick={() => disconnectWallet()}
+                  variant="ghost"
+                  size="sm"
+                >
+                  Disconnect
+                </Button>
               </div>
             </>
           ) : (
             <Button
-              onClick={onConnectWallet}
+              onClick={handleConnectWallet}
               className="bg-solana hover:bg-solana-dark text-white"
+              disabled={connecting}
             >
-              Connect Wallet
+              {connecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Connect Wallet'
+              )}
             </Button>
           )}
         </div>

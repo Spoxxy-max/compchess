@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import NewGameModal from '../components/NewGameModal';
 import JoinGameModal from '../components/JoinGameModal';
+import TournamentPlaceholder from '../components/TournamentPlaceholder';
 import { TimeControl, TimeControlOption } from '../utils/chessTypes';
 import { timeControlOptions } from '../utils/chessUtils';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useWallet } from '../integrations/solana/wallet';
 
 // Mock data for join game
 const mockAvailableGames = [
@@ -31,12 +33,13 @@ const mockAvailableGames = [
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(5.0);
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [animationComplete, setAnimationComplete] = useState(false);
+  const { wallet, connectWallet } = useWallet();
+  
+  const isLoggedIn = wallet?.connected;
 
   // Simulate animation completion
   useEffect(() => {
@@ -71,12 +74,7 @@ const Index = () => {
   };
 
   const handleConnectWallet = () => {
-    // Simulate connecting wallet
-    setIsLoggedIn(true);
-    toast({
-      title: "Wallet Connected",
-      description: "Successfully connected to Solana Devnet",
-    });
+    connectWallet();
   };
 
   const handleCreateGame = (timeControl: TimeControl, stake: number) => {
@@ -113,9 +111,6 @@ const Index = () => {
       <Header 
         onNewGame={handleNewGame}
         onJoinGame={handleJoinGame}
-        isLoggedIn={isLoggedIn}
-        onConnectWallet={handleConnectWallet}
-        walletBalance={walletBalance}
       />
       
       <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
@@ -210,6 +205,10 @@ const Index = () => {
                   </Button>
                 </div>
               </div>
+            </div>
+            
+            <div className="mt-8">
+              <TournamentPlaceholder />
             </div>
           </div>
         </div>

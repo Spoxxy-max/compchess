@@ -13,7 +13,34 @@ interface ChessBoardProps {
 const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }) => {
   const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
   const [flipped, setFlipped] = useState(playerColor === 'black');
+  const [boardSize, setBoardSize] = useState('95vw');
   const isMobile = useIsMobile();
+
+  // Responsive board size calculation
+  useEffect(() => {
+    const calculateBoardSize = () => {
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const headerHeight = 80; // Approximate header height
+      const infoHeight = isMobile ? 300 : 0; // Height of info panel if it's shown below on mobile
+      const padding = 48; // Some padding
+
+      const availableHeight = viewportHeight - headerHeight - infoHeight - padding;
+      const maxWidth = isMobile ? viewportWidth - 32 : Math.min(600, viewportWidth * 0.5);
+      
+      // Use the smaller of available height or maxWidth to ensure square aspect ratio
+      const size = Math.min(availableHeight, maxWidth);
+      
+      setBoardSize(`${size}px`);
+    };
+
+    calculateBoardSize();
+    window.addEventListener('resize', calculateBoardSize);
+    
+    return () => {
+      window.removeEventListener('resize', calculateBoardSize);
+    };
+  }, [isMobile]);
 
   const handleSquareClick = (square: ChessSquare) => {
     if (board.gameOver) return;
@@ -155,11 +182,50 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
     setFlipped(!flipped);
   };
 
+  // Add file (a-h) and rank (1-8) labels
+  const renderBoardWithLabels = () => {
+    const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+    if (flipped) {
+      files.reverse();
+      ranks.reverse();
+    }
+
+    return (
+      <div className="relative">
+        {/* File labels (bottom) */}
+        <div className="absolute -bottom-6 left-0 right-0 flex justify-around px-2">
+          {files.map(file => (
+            <div key={file} className="text-xs text-muted-foreground w-6 text-center">
+              {file}
+            </div>
+          ))}
+        </div>
+        
+        {/* Rank labels (left side) */}
+        <div className="absolute -left-6 top-0 bottom-0 flex flex-col justify-around py-1">
+          {ranks.map(rank => (
+            <div key={rank} className="text-xs text-muted-foreground h-6 flex items-center">
+              {rank}
+            </div>
+          ))}
+        </div>
+        
+        {/* The actual chess board */}
+        <div className={`chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50`} style={{ width: boardSize, height: boardSize }}>
+          {renderBoard()}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col items-center">
-      <div className={`chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50 ${isMobile ? 'w-full max-w-[95vw]' : 'w-full max-w-[min(80vh,600px)]'}`}>
-        {renderBoard()}
+      <div className="relative pb-8 pl-8">
+        {renderBoardWithLabels()}
       </div>
+      
       <button
         onClick={toggleBoardOrientation}
         className="mt-4 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm transition-colors duration-200"
