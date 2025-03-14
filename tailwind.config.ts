@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -52,6 +53,14 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// Custom colors for our chess app
+				solana: {
+					DEFAULT: '#9945FF',
+					light: '#B980FF',
+					dark: '#7C2BDD'
+				},
+				chessLight: '#F0D9B5',
+				chessDark: '#B58863',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -84,11 +93,17 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'piece-move': {
+					'0%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-3px)' },
+					'100%': { transform: 'translateY(0)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'piece-move': 'piece-move 0.3s ease-in-out'
 			}
 		}
 	},
