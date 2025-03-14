@@ -6,4 +6,9 @@ interface Window {
       disconnect: () => Promise<void>;
     };
   };
+  solflare?: {
+    connect: () => Promise<void>;
+    disconnect: () => Promise<void>;
+    publicKey?: { toString: () => string };
+  };
 }

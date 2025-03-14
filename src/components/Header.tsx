@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { useWallet } from '../integrations/solana/wallet';
-import { Loader2 } from 'lucide-react';
+import { Loader2, WalletIcon } from 'lucide-react';
+import WalletSelector from './WalletSelector';
 
 interface HeaderProps {
   onNewGame: () => void;
@@ -14,13 +15,15 @@ const Header: React.FC<HeaderProps> = ({
   onNewGame, 
   onJoinGame, 
 }) => {
-  const { wallet, connecting, connectWallet, disconnectWallet } = useWallet();
+  const { wallet, connecting, disconnectWallet } = useWallet();
+  const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
   
   const isLoggedIn = wallet?.connected;
   const walletBalance = wallet?.balance;
+  const walletName = wallet?.walletName;
 
-  const handleConnectWallet = () => {
-    connectWallet();
+  const handleOpenWalletSelector = () => {
+    setIsWalletSelectorOpen(true);
   };
   
   return (
@@ -35,7 +38,9 @@ const Header: React.FC<HeaderProps> = ({
           {isLoggedIn ? (
             <>
               <div className="flex items-center gap-2">
-                <div className="px-3 py-1 bg-secondary rounded-md flex items-center">
+                <div className="px-3 py-1 bg-secondary rounded-md flex items-center gap-2">
+                  <WalletIcon className="h-4 w-4" />
+                  <span className="text-sm font-medium hidden sm:inline">{walletName}</span>
                   <span className="text-sm font-semibold">{walletBalance?.toFixed(2) || 0} SOL</span>
                 </div>
                 <Button 
@@ -61,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({
             </>
           ) : (
             <Button
-              onClick={handleConnectWallet}
+              onClick={handleOpenWalletSelector}
               className="bg-solana hover:bg-solana-dark text-white"
               disabled={connecting}
             >
@@ -71,12 +76,20 @@ const Header: React.FC<HeaderProps> = ({
                   Connecting...
                 </>
               ) : (
-                'Connect Wallet'
+                <>
+                  <WalletIcon className="mr-2 h-4 w-4" />
+                  Connect Wallet
+                </>
               )}
             </Button>
           )}
         </div>
       </div>
+      
+      <WalletSelector 
+        isOpen={isWalletSelectorOpen}
+        onClose={() => setIsWalletSelectorOpen(false)}
+      />
     </header>
   );
 };
