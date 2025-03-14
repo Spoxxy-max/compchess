@@ -53,6 +53,11 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+  
+  html {
+    @apply scroll-smooth;
   }
 }
 
@@ -86,7 +91,7 @@
   }
 
   .game-info-panel {
-    @apply bg-card rounded-lg p-4 shadow-lg;
+    @apply bg-card rounded-lg p-4 shadow-lg border border-border;
   }
 
   .time-control-button {
@@ -99,5 +104,73 @@
 
   .time-control-button:not(.active) {
     @apply bg-secondary text-foreground hover:bg-secondary/80;
+  }
+  
+  /* Futuristic custom components */
+  .neo-glow {
+    @apply relative;
+  }
+  
+  .neo-glow::after {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-full rounded-lg blur opacity-50 -z-10;
+    background: linear-gradient(45deg, #9945FF 0%, #14F195 100%);
+    transform: translate(0, 0);
+  }
+  
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-md border border-white/10 rounded-lg shadow-xl;
+  }
+  
+  .grid-pattern-bg {
+    background-image: 
+      linear-gradient(rgba(9,9,11,0.1) 0.1px, transparent 0.1px),
+      linear-gradient(to right, rgba(9,9,11,0.1) 0.1px, transparent 0.1px);
+    background-size: 24px 24px;
+    @apply opacity-20;
+  }
+  
+  .divider {
+    @apply w-full h-px bg-gradient-to-r from-transparent via-border to-transparent my-4;
+  }
+  
+  /* Animations */
+  @keyframes float {
+    0% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+    100% {
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+  
+  @keyframes glow {
+    0% {
+      box-shadow: 0 0 5px #9945FF;
+    }
+    50% {
+      box-shadow: 0 0 20px #9945FF;
+    }
+    100% {
+      box-shadow: 0 0 5px #9945FF;
+    }
+  }
+  
+  .animate-glow {
+    animation: glow 3s ease-in-out infinite;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .chess-board {
+    max-width: 100vw;
   }
 }

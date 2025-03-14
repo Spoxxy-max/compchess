@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
 import { createInitialBoard, getValidMoves } from '../utils/chessUtils';
 import ChessPieceComponent from './ChessPiece';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ChessBoardProps {
   playerColor?: PieceColor;
@@ -12,6 +13,7 @@ interface ChessBoardProps {
 const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }) => {
   const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
   const [flipped, setFlipped] = useState(playerColor === 'black');
+  const isMobile = useIsMobile();
 
   const handleSquareClick = (square: ChessSquare) => {
     if (board.gameOver) return;
@@ -155,12 +157,12 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
 
   return (
     <div className="flex flex-col items-center">
-      <div className="chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50">
+      <div className={`chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50 ${isMobile ? 'w-full max-w-[95vw]' : 'w-full max-w-[min(80vh,600px)]'}`}>
         {renderBoard()}
       </div>
       <button
         onClick={toggleBoardOrientation}
-        className="mt-4 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm"
+        className="mt-4 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm transition-colors duration-200"
       >
         Flip Board
       </button>
