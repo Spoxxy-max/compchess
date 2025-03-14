@@ -1,12 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
-
-// Supabase client initialization
-// You'll need to replace these with your Supabase project URL and anon key
-const supabaseUrl = 'https://ybbetihhhpoekxyzcsah.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliYmV0aWhoaHBvZWt4eXpjc2FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5NTg3MzMsImV4cCI6MjA1NzUzNDczM30.vG0mW6v-DJecyCz-T6H8Oar49INf3yj5iJeFTwFE-Ho';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '@/integrations/supabase/client';
+import { ChessBoard, PieceColor } from './chessTypes';
 
 // Game-related functions
 export interface CreateGameParams {
@@ -14,6 +9,7 @@ export interface CreateGameParams {
   timeControl: string;
   timeIncrement: number;
   stake: number;
+  initialBoard: ChessBoard;
 }
 
 export interface GameData {
@@ -21,28 +17,35 @@ export interface GameData {
   host_id: string;
   opponent_id?: string;
   time_control: string;
-  time_increment: number;
+  time_white: number;
+  time_black: number;
   stake: number;
   status: 'waiting' | 'active' | 'completed';
   winner_id?: string;
   created_at: string;
-  board_state?: string;
-  move_history?: string[];
+  board_state: ChessBoard;
+  move_history: string[];
+  current_turn: PieceColor;
 }
 
 // Create a new game in Supabase
 export const createGame = async (params: CreateGameParams): Promise<GameData | null> => {
-  const { hostId, timeControl, timeIncrement, stake } = params;
+  const { hostId, timeControl, timeIncrement, stake, initialBoard } = params;
+  
+  const startTime = initialBoard.whiteTime; // Both white and black have the same starting time
   
   const { data, error } = await supabase
-    .from('games')
+    .from('chess_games')
     .insert({
       host_id: hostId,
       time_control: timeControl,
-      time_increment: timeIncrement,
+      time_white: startTime,
+      time_black: startTime,
       stake: stake,
       status: 'waiting',
-      created_at: new Date().toISOString(),
+      board_state: initialBoard,
+      move_history: [],
+      current_turn: 'white'
     })
     .select()
     .single();
@@ -58,7 +61,7 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
 // Join an existing game
 export const joinGame = async (gameId: string, opponentId: string): Promise<boolean> => {
   const { error } = await supabase
-    .from('games')
+    .from('chess_games')
     .update({ 
       opponent_id: opponentId,
       status: 'active' 
@@ -77,7 +80,7 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
 // Get available games
 export const getAvailableGames = async (): Promise<GameData[]> => {
   const { data, error } = await supabase
-    .from('games')
+    .from('chess_games')
     .select('*')
     .eq('status', 'waiting')
     .order('created_at', { ascending: false });
@@ -93,14 +96,17 @@ export const getAvailableGames = async (): Promise<GameData[]> => {
 // Update game state
 export const updateGameState = async (
   gameId: string, 
-  boardState: string, 
+  boardState: ChessBoard, 
   moveHistory: string[]
 ): Promise<boolean> => {
   const { error } = await supabase
-    .from('games')
+    .from('chess_games')
     .update({ 
       board_state: boardState,
-      move_history: moveHistory
+      move_history: moveHistory,
+      current_turn: boardState.currentTurn,
+      time_white: boardState.whiteTime,
+      time_black: boardState.blackTime
     })
     .eq('id', gameId);
     
@@ -115,7 +121,7 @@ export const updateGameState = async (
 // End game and declare winner
 export const endGame = async (gameId: string, winnerId: string): Promise<boolean> => {
   const { error } = await supabase
-    .from('games')
+    .from('chess_games')
     .update({ 
       status: 'completed',
       winner_id: winnerId
@@ -138,7 +144,7 @@ export const subscribeToGame = (gameId: string, callback: (payload: any) => void
       { 
         event: 'UPDATE', 
         schema: 'public', 
-        table: 'games',
+        table: 'chess_games',
         filter: `id=eq.${gameId}`
       }, 
       callback

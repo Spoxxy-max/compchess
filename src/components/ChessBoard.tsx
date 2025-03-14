@@ -1,20 +1,44 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
-import { createInitialBoard, getValidMoves } from '../utils/chessUtils';
+import { createInitialBoard, getValidMoves, isInCheck, isCheckmate } from '../utils/chessUtils';
 import ChessPieceComponent from './ChessPiece';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChessBoardProps {
   playerColor?: PieceColor;
   onMove?: (from: ChessSquare, to: ChessSquare) => void;
+  gameId?: string;
+  readOnly?: boolean;
 }
 
-const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }) => {
+const ChessBoard: React.FC<ChessBoardProps> = ({ 
+  playerColor = 'white', 
+  onMove,
+  gameId,
+  readOnly = false
+}) => {
   const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
   const [flipped, setFlipped] = useState(playerColor === 'black');
   const [boardSize, setBoardSize] = useState('95vw');
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [lastMove, setLastMove] = useState<{from: ChessSquare, to: ChessSquare} | null>(null);
+  const [draggedPiece, setDraggedPiece] = useState<{square: ChessSquare, x: number, y: number} | null>(null);
+
+  // Audio effects
+  const moveAudio = useRef<HTMLAudioElement | null>(null);
+  const captureAudio = useRef<HTMLAudioElement | null>(null);
+  const checkAudio = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Initialize audio elements
+    moveAudio.current = new Audio('/sounds/move.mp3');
+    captureAudio.current = new Audio('/sounds/capture.mp3');
+    checkAudio.current = new Audio('/sounds/check.mp3');
+  }, []);
 
   // Responsive board size calculation
   useEffect(() => {
@@ -43,10 +67,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
   }, [isMobile]);
 
   const handleSquareClick = (square: ChessSquare) => {
-    if (board.gameOver) return;
+    if (board.gameOver || readOnly) return;
     
-    // If it's not the player's turn, do nothing
-    if (board.currentTurn !== playerColor) return;
+    // If it's not the player's turn in a multiplayer game, do nothing
+    if (gameId && board.currentTurn !== playerColor) return;
 
     // If a piece is already selected
     if (board.selectedSquare) {
@@ -56,37 +80,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
       );
 
       if (isValidMove) {
-        // Move the piece
-        const newBoard = { ...board };
-        const from = board.selectedSquare;
-        const to = square;
-
-        // Capture piece if any
-        if (to.piece) {
-          newBoard.capturedPieces.push({ ...to.piece });
-        }
-
-        // Move piece
-        to.piece = from.piece;
-        from.piece = null;
-
-        // Update board state
-        newBoard.currentTurn = board.currentTurn === 'white' ? 'black' : 'white';
-        newBoard.selectedSquare = null;
-        newBoard.validMoves = [];
-
-        // Record move in algebraic notation (simplified)
-        const files = 'abcdefgh';
-        const moveNotation = `${files[from.col]}${8 - from.row}${to.piece ? 'x' : '-'}${files[to.col]}${8 - to.row}`;
-        newBoard.moveHistory.push(moveNotation);
-
-        setBoard(newBoard);
-
-        // Notify parent component
-        if (onMove) {
-          onMove(board.selectedSquare, square);
-        }
-      } else if (square.piece && square.piece.color === playerColor) {
+        // Move the piece and handle the game logic
+        movePiece(board.selectedSquare, square);
+      } else if (square.piece && square.piece.color === board.currentTurn) {
         // Select a new piece
         const newValidMoves = getValidMoves(board, square);
         setBoard({
@@ -102,7 +98,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
           validMoves: [],
         });
       }
-    } else if (square.piece && square.piece.color === playerColor) {
+    } else if (square.piece && square.piece.color === board.currentTurn) {
       // Select piece
       const validMoves = getValidMoves(board, square);
       setBoard({
@@ -113,8 +109,119 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
     }
   };
 
+  const movePiece = (from: ChessSquare, to: ChessSquare) => {
+    const newBoard = { ...board };
+    const isCapture = !!to.piece;
+
+    // Store the move for highlighting
+    setLastMove({ from, to });
+    
+    // Capture piece if any
+    if (isCapture) {
+      newBoard.capturedPieces.push({ ...to.piece! });
+    }
+
+    // Mark piece as moved (for castling, en passant)
+    if (from.piece) {
+      from.piece.hasMoved = true;
+    }
+
+    // Special move: Castling
+    if (from.piece?.type === 'king' && Math.abs(from.col - to.col) === 2) {
+      // King-side castling
+      if (to.col === 6) {
+        const rook = newBoard.squares[from.row][7].piece;
+        newBoard.squares[from.row][5].piece = rook;
+        newBoard.squares[from.row][7].piece = null;
+      }
+      // Queen-side castling
+      else if (to.col === 2) {
+        const rook = newBoard.squares[from.row][0].piece;
+        newBoard.squares[from.row][3].piece = rook;
+        newBoard.squares[from.row][0].piece = null;
+      }
+    }
+
+    // Special move: Pawn promotion
+    const isPawnPromotion = from.piece?.type === 'pawn' && 
+      ((from.piece.color === 'white' && to.row === 0) || 
+       (from.piece.color === 'black' && to.row === 7));
+
+    if (isPawnPromotion) {
+      // Promote to queen automatically for now
+      from.piece.type = 'queen';
+    }
+    
+    // Move piece
+    to.piece = from.piece;
+    from.piece = null;
+
+    // Update board state
+    newBoard.currentTurn = board.currentTurn === 'white' ? 'black' : 'white';
+    newBoard.selectedSquare = null;
+    newBoard.validMoves = [];
+
+    // Record move in algebraic notation
+    const files = 'abcdefgh';
+    const pieceSymbol = to.piece ? getPieceSymbol(to.piece.type) : '';
+    const captureSymbol = isCapture ? 'x' : '';
+    const moveNotation = `${pieceSymbol}${files[from.col]}${8 - from.row}${captureSymbol}${files[to.col]}${8 - to.row}`;
+    newBoard.moveHistory.push(moveNotation);
+
+    // Check for check and checkmate
+    const opponentColor = newBoard.currentTurn;
+    const isInCheckNow = isInCheck(newBoard, opponentColor);
+    const isCheckmateNow = isInCheckNow && isCheckmate(newBoard, opponentColor);
+    
+    // Play sound
+    if (isCapture && captureAudio.current) {
+      captureAudio.current.play();
+    } else if (isInCheckNow && checkAudio.current) {
+      checkAudio.current.play();
+    } else if (moveAudio.current) {
+      moveAudio.current.play();
+    }
+
+    // Update game status
+    if (isCheckmateNow) {
+      newBoard.gameOver = true;
+      newBoard.winner = newBoard.currentTurn === 'white' ? 'black' : 'white';
+      toast({
+        title: "Checkmate!",
+        description: `${newBoard.winner} wins the game!`,
+      });
+    } else if (isInCheckNow) {
+      toast({
+        description: `${opponentColor} is in check!`,
+      });
+    }
+
+    setBoard(newBoard);
+
+    // Notify parent component
+    if (onMove) {
+      onMove(from, to);
+    }
+  };
+
+  // Helper function to get piece symbol for notation
+  const getPieceSymbol = (pieceType: string): string => {
+    switch (pieceType) {
+      case 'knight': return 'N';
+      case 'bishop': return 'B';
+      case 'rook': return 'R';
+      case 'queen': return 'Q';
+      case 'king': return 'K';
+      default: return '';
+    }
+  };
+
   const renderSquare = (square: ChessSquare, isSelected: boolean, isValidMove: boolean) => {
     const isLight = (square.row + square.col) % 2 === 0;
+    const isPartOfLastMove = lastMove && 
+      ((lastMove.from.row === square.row && lastMove.from.col === square.col) ||
+       (lastMove.to.row === square.row && lastMove.to.col === square.col));
+    
     const classes = [
       'chess-square',
       isLight ? 'chess-square-light' : 'chess-square-dark',
@@ -124,10 +231,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
       'justify-center',
       'w-full',
       'h-full',
+      'transition-all',
+      'duration-200',
     ];
 
     if (isSelected) {
-      classes.push('ring-2 ring-solana ring-inset');
+      classes.push('ring-2 ring-solana ring-inset shadow-inner shadow-solana/30');
+    }
+
+    if (isPartOfLastMove) {
+      classes.push('bg-solana/20');
     }
 
     if (isValidMove) {
@@ -213,7 +326,17 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ playerColor = 'white', onMove }
         </div>
         
         {/* The actual chess board */}
-        <div className={`chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50`} style={{ width: boardSize, height: boardSize }}>
+        <div 
+          ref={boardRef}
+          className="chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50"
+          style={{ 
+            width: boardSize, 
+            height: boardSize,
+            backgroundImage: 'url(/images/chess-board-wood.jpg)',
+            backgroundSize: 'cover',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+          }}
+        >
           {renderBoard()}
         </div>
       </div>

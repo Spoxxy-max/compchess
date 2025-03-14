@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   WalletContext, 
   createWallet, 
@@ -15,6 +16,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [connecting, setConnecting] = useState(false);
   const [availableWallets, setAvailableWallets] = useState<{ type: WalletType; name: string }[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Get available wallets
@@ -76,6 +79,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         title: "Wallet Disconnected",
         description: "Successfully disconnected from your Solana wallet",
       });
+      
+      // Redirect to index page if not already there
+      if (location.pathname !== '/') {
+        navigate('/');
+      }
     } catch (error: any) {
       toast({
         title: "Disconnect Failed",
