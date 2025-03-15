@@ -114,15 +114,15 @@ const Index = () => {
       />
       
       <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
-        <div className="max-w-5xl w-full flex flex-col lg:flex-row items-center gap-12">
+        <div className="max-w-6xl w-full mx-auto flex flex-col lg:flex-row items-center gap-12">
           <div className={`lg:w-1/2 text-left transition-all duration-1000 ease-out ${animationComplete ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
-            <h1 className="text-4xl sm:text-5xl font-bold mb-4 relative">
+            <h1 className="text-4xl sm:text-6xl font-bold mb-6 relative">
               <span className="relative inline-block">
                 Play Chess on <span className="text-solana">Solana</span>
                 <div className="absolute -bottom-2 left-0 h-1 w-24 bg-solana rounded-full"></div>
               </span>
             </h1>
-            <p className="text-lg mb-8 text-gray-300 leading-relaxed">
+            <p className="text-lg mb-8 text-gray-300 leading-relaxed max-w-xl">
               CompChess is a decentralized chess platform where you can challenge opponents 
               and compete for SOL stakes in secure, transparent matches powered by blockchain technology.
             </p>
@@ -148,7 +148,14 @@ const Index = () => {
               {!isLoggedIn && (
                 <p className="text-sm text-gray-400 mt-2 flex items-center gap-2">
                   <span className="inline-block w-2 h-2 bg-solana rounded-full animate-pulse"></span>
-                  Connect your Solana wallet to create or join games with stakes
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-solana" 
+                    onClick={handleConnectWallet}
+                  >
+                    Connect your Solana wallet
+                  </Button>
+                  to create or join games with stakes
                 </p>
               )}
             </div>
@@ -162,32 +169,36 @@ const Index = () => {
                   <span className="bg-solana h-5 w-1 mr-3 rounded-full"></span>
                   Features
                 </h2>
-                <ul className="space-y-4">
-                  <li className="flex items-start">
-                    <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
-                      <div className="h-2 w-2 bg-white rounded-full"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Challenge others to 1v1 matches with customizable time controls</p>
                     </div>
-                    <p className="text-sm sm:text-base">Challenge others to 1v1 matches with customizable time controls</p>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
-                      <div className="h-2 w-2 bg-white rounded-full"></div>
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Stake SOL on games and compete for winnings</p>
                     </div>
-                    <p className="text-sm sm:text-base">Stake SOL on games and compete for winnings</p>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
-                      <div className="h-2 w-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Secure and transparent gameplay with Solana blockchain</p>
                     </div>
-                    <p className="text-sm sm:text-base">Secure and transparent gameplay with Solana blockchain</p>
-                  </li>
-                  <li className="flex items-start">
-                    <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
-                      <div className="h-2 w-2 bg-white rounded-full"></div>
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Choose from Blitz, Rapid, or Classical time controls</p>
                     </div>
-                    <p className="text-sm sm:text-base">Choose from Blitz, Rapid, or Classical time controls</p>
-                  </li>
-                </ul>
+                  </div>
+                </div>
                 <div className="mt-6">
                   <Button 
                     onClick={() => navigate('/game', { 

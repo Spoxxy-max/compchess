@@ -1,4 +1,3 @@
-
 import { createContext, useContext } from 'react';
 
 // Wallet adapter interface
@@ -28,18 +27,11 @@ abstract class BaseWalletAdapter implements WalletAdapter {
   abstract disconnect(): Promise<void>;
   
   async fetchBalance(): Promise<number> {
-    // This would be replaced with actual balance fetching in a real implementation
     if (!this.publicKey) return 0;
     
     try {
-      // If we were using the Solana web3.js SDK, we would use:
-      // const connection = new Connection(NETWORK_URL);
-      // const publicKey = new PublicKey(this.publicKey);
-      // const balance = await connection.getBalance(publicKey);
-      // return balance / LAMPORTS_PER_SOL;
-      
-      // For now, fetch a mock balance from an API endpoint
-      const response = await fetch(`https://api.mainnet-beta.solana.com`, {
+      // Use Solana JSON RPC API to fetch the real balance
+      const response = await fetch('https://api.mainnet-beta.solana.com', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,26 +44,30 @@ abstract class BaseWalletAdapter implements WalletAdapter {
         }),
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch balance');
-      }
-      
       const data = await response.json();
       
       if (data.error) {
+        console.error('Error fetching balance:', data.error);
         throw new Error(data.error.message);
       }
       
       // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
-      this.balance = data.result?.value ? data.result.value / 1000000000 : Math.random() * 10;
-      
-      return this.balance;
+      if (data.result?.value !== undefined) {
+        this.balance = data.result.value / 1000000000;
+        return this.balance;
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
       console.error('Error fetching balance:', error);
       
-      // Fallback to random balance for demo/development
-      this.balance = Math.random() * 10;
-      return this.balance;
+      // In development environment, return random balance as fallback
+      if (process.env.NODE_ENV === 'development') {
+        this.balance = Math.random() * 10;
+        return this.balance;
+      }
+      
+      throw error;
     }
   }
 }

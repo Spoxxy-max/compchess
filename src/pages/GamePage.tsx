@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
 import GameInfo from '../components/GameInfo';
+import VictoryModal from '../components/VictoryModal';
+import StakeConfirmationModal from '../components/StakeConfirmationModal';
 import { createInitialBoard, formatTime, timeControlOptions } from '../utils/chessUtils';
 import { ChessBoard as ChessBoardType, PieceColor, TimeControl } from '../utils/chessTypes';
 import { useToast } from "@/hooks/use-toast";
@@ -31,13 +33,17 @@ const GamePage: React.FC<GamePageProps> = ({
   const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
+  const [showVictoryModal, setShowVictoryModal] = useState(false);
+  const [showStakeModal, setShowStakeModal] = useState(false);
+  const [stakeConfirmed, setStakeConfirmed] = useState(false);
+  const [gameWinner, setGameWinner] = useState<'you' | string | null>(null);
   
   // Router and UI hooks
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const { wallet } = useWallet();
+  const { wallet, smartContractExecute } = useWallet();
   const urlParams = useParams<{ id?: string }>();
   
   // Determine the actual game ID from props or URL
@@ -61,10 +67,50 @@ const GamePage: React.FC<GamePageProps> = ({
         playerColor = routePlayerColor;
       }
     }
+    
+    // Show stake confirmation modal if there's a non-zero stake
+    if (stake > 0 && !isPracticeMode) {
+      setShowStakeModal(true);
+    } else {
+      setStakeConfirmed(true);
+    }
   }, [location]);
+
+  // Handle stake confirmation
+  const handleStakeConfirm = async () => {
+    try {
+      // Call smart contract to handle the stake
+      if (wallet && wallet.connected) {
+        const result = await smartContractExecute('createGame', [stake, timeControl.startTime]);
+        if (result.success) {
+          setStakeConfirmed(true);
+          setShowStakeModal(false);
+          
+          toast({
+            title: "Stake Confirmed",
+            description: `Successfully staked ${stake} SOL on this game`,
+          });
+        } else {
+          toast({
+            title: "Stake Failed",
+            description: result.error?.message || "Failed to stake funds",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Stake Error",
+        description: error.message || "An error occurred when staking",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Create or load the game
   useEffect(() => {
+    if (!stakeConfirmed) return;
+    
     if (isPracticeMode) {
       // Initialize practice mode with the selected time control
       const initialBoard = createInitialBoard();
@@ -114,12 +160,12 @@ const GamePage: React.FC<GamePageProps> = ({
         setBoard(initialBoard);
       }
     }
-  }, [gameId, wallet?.publicKey]);
+  }, [gameId, wallet?.publicKey, stakeConfirmed]);
 
   // Set up timer
   useEffect(() => {
     // Only start the timer in practice mode or if the game is active
-    if (isPracticeMode || (gameData && gameData.status === 'active')) {
+    if ((isPracticeMode || (gameData && gameData.status === 'active')) && stakeConfirmed) {
       const timer = setInterval(() => {
         setBoard((prevBoard) => {
           if (!prevBoard.isTimerRunning || prevBoard.gameOver) {
@@ -137,6 +183,10 @@ const GamePage: React.FC<GamePageProps> = ({
             if (!isPracticeMode && gameData) {
               endGame(gameData.id, winner === 'white' ? gameData.host_id : gameData.opponent_id || '');
             }
+            
+            // Show victory modal
+            setGameWinner(winner === playerColor ? 'you' : winner);
+            setShowVictoryModal(true);
             
             toast({
               title: "Time's Up!",
@@ -169,7 +219,7 @@ const GamePage: React.FC<GamePageProps> = ({
 
       return () => clearInterval(timer);
     }
-  }, [isPracticeMode, gameData, toast]);
+  }, [isPracticeMode, gameData, toast, playerColor, stakeConfirmed]);
 
   // Handle piece movement
   const handleMove = useCallback((from, to) => {
@@ -184,6 +234,12 @@ const GamePage: React.FC<GamePageProps> = ({
         updatedBoard.whiteTime += timeControl.increment;
       }
       
+      // Check for game end conditions like checkmate
+      if (prevBoard.gameOver && !showVictoryModal) {
+        setGameWinner(prevBoard.winner === playerColor ? 'you' : prevBoard.winner || null);
+        setShowVictoryModal(true);
+      }
+      
       return updatedBoard;
     });
 
@@ -194,7 +250,7 @@ const GamePage: React.FC<GamePageProps> = ({
         return prevBoard;
       });
     }
-  }, [isPracticeMode, gameData, timeControl]);
+  }, [isPracticeMode, gameData, timeControl, playerColor, showVictoryModal]);
 
   // Handle new game creation
   const handleNewGame = () => {
@@ -280,6 +336,28 @@ const GamePage: React.FC<GamePageProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* Victory Modal */}
+      <VictoryModal
+        isOpen={showVictoryModal}
+        onClose={() => setShowVictoryModal(false)}
+        winner={gameWinner || ''}
+        stake={stake}
+      />
+      
+      {/* Stake Confirmation Modal */}
+      <StakeConfirmationModal
+        isOpen={showStakeModal}
+        onClose={() => {
+          setShowStakeModal(false);
+          if (stake > 0 && !isPracticeMode) {
+            navigate('/');
+          }
+        }}
+        onConfirm={handleStakeConfirm}
+        stake={stake}
+        timeControl={timeControl.label}
+      />
     </div>
   );
 };
