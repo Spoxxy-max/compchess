@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor } from './chessTypes';
+import { Json } from '@/integrations/supabase/types';
 
 // Game-related functions
 export interface CreateGameParams {
@@ -28,6 +29,16 @@ export interface GameData {
   current_turn: PieceColor;
 }
 
+// Convert ChessBoard to JSON-compatible object
+const boardToJson = (board: ChessBoard): Json => {
+  return board as unknown as Json;
+};
+
+// Convert JSON back to ChessBoard
+const jsonToBoard = (json: Json): ChessBoard => {
+  return json as unknown as ChessBoard;
+};
+
 // Create a new game in Supabase
 export const createGame = async (params: CreateGameParams): Promise<GameData | null> => {
   const { hostId, timeControl, timeIncrement, stake, initialBoard } = params;
@@ -42,8 +53,8 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
       time_white: startTime,
       time_black: startTime,
       stake: stake,
-      status: 'waiting',
-      board_state: initialBoard,
+      status: 'waiting' as const,
+      board_state: boardToJson(initialBoard),
       move_history: [],
       current_turn: 'white'
     })
@@ -55,7 +66,12 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
     return null;
   }
   
-  return data;
+  return {
+    ...data,
+    board_state: jsonToBoard(data.board_state),
+    move_history: Array.isArray(data.move_history) ? data.move_history : [],
+    status: data.status as 'waiting' | 'active' | 'completed'
+  };
 };
 
 // Join an existing game
@@ -64,7 +80,7 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     .from('chess_games')
     .update({ 
       opponent_id: opponentId,
-      status: 'active' 
+      status: 'active' as const
     })
     .eq('id', gameId)
     .eq('status', 'waiting');
@@ -90,7 +106,12 @@ export const getAvailableGames = async (): Promise<GameData[]> => {
     return [];
   }
   
-  return data || [];
+  return (data || []).map(game => ({
+    ...game,
+    board_state: jsonToBoard(game.board_state),
+    move_history: Array.isArray(game.move_history) ? game.move_history : [],
+    status: game.status as 'waiting' | 'active' | 'completed'
+  }));
 };
 
 // Update game state
@@ -102,7 +123,7 @@ export const updateGameState = async (
   const { error } = await supabase
     .from('chess_games')
     .update({ 
-      board_state: boardState,
+      board_state: boardToJson(boardState),
       move_history: moveHistory,
       current_turn: boardState.currentTurn,
       time_white: boardState.whiteTime,
@@ -123,7 +144,7 @@ export const endGame = async (gameId: string, winnerId: string): Promise<boolean
   const { error } = await supabase
     .from('chess_games')
     .update({ 
-      status: 'completed',
+      status: 'completed' as const,
       winner_id: winnerId
     })
     .eq('id', gameId);
