@@ -28,22 +28,22 @@ const LoadingFallback = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Suspense fallback={<LoadingFallback />}>
-        <WalletProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+    <BrowserRouter>
+      <TooltipProvider>
+        <Suspense fallback={<LoadingFallback />}>
+          <WalletProvider>
+            <Toaster />
+            <Sonner />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/game" element={<GamePage timeControl={timeControlOptions[0]} stake={0} />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        </WalletProvider>
-      </Suspense>
-    </TooltipProvider>
+          </WalletProvider>
+        </Suspense>
+      </TooltipProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 
