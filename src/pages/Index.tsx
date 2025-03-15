@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
@@ -82,20 +81,16 @@ const Index = () => {
     navigate('/game', { state: { timeControl, stake, playerColor: 'white' } });
   };
 
-  const handleJoinGameSubmit = (gameId: string) => {
-    // Find the selected game from mock data
-    const selectedGame = mockAvailableGames.find(game => game.id === gameId);
-    
-    if (selectedGame) {
-      navigate('/game', { 
-        state: { 
-          gameId,
-          timeControl: selectedGame.timeControl,
-          stake: selectedGame.stake,
-          playerColor: 'black' 
-        } 
-      });
-    }
+  const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
+    // Navigate to the game page with the selected settings
+    navigate('/game', { 
+      state: { 
+        gameId,
+        timeControl,
+        stake,
+        playerColor: 'black' 
+      } 
+    });
   };
 
   return (
@@ -235,7 +230,6 @@ const Index = () => {
         isOpen={isJoinGameModalOpen}
         onClose={() => setIsJoinGameModalOpen(false)}
         onJoinGame={handleJoinGameSubmit}
-        availableGames={mockAvailableGames}
       />
     </div>
   );
