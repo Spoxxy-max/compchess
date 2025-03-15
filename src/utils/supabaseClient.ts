@@ -70,7 +70,8 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
     ...data,
     board_state: jsonToBoard(data.board_state),
     move_history: Array.isArray(data.move_history) ? data.move_history.map(move => String(move)) : [],
-    status: data.status as 'waiting' | 'active' | 'completed'
+    status: data.status as 'waiting' | 'active' | 'completed',
+    current_turn: data.current_turn as PieceColor
   };
 };
 
@@ -110,7 +111,8 @@ export const getAvailableGames = async (): Promise<GameData[]> => {
     ...game,
     board_state: jsonToBoard(game.board_state),
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
-    status: game.status as 'waiting' | 'active' | 'completed'
+    status: game.status as 'waiting' | 'active' | 'completed',
+    current_turn: game.current_turn as PieceColor
   }));
 };
 
