@@ -1,11 +1,11 @@
 
 import { createRoot } from 'react-dom/client'
 import { Suspense, StrictMode } from 'react'
-import { ErrorBoundary } from 'react-error-boundary'
+import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
 import App from './App.tsx'
 import './index.css'
 
-function ErrorFallback({ error }) {
+function ErrorFallback({ error }: FallbackProps) {
   return (
     <div className="bg-background text-white p-4 rounded-md m-4">
       <h2 className="text-xl font-bold text-red-500 mb-2">Something went wrong:</h2>
