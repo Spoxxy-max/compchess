@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
 import GameInfo from '../components/GameInfo';
 import VictoryModal from '../components/VictoryModal';
 import StakeConfirmationModal from '../components/StakeConfirmationModal';
+import GameStartCountdown from '../components/GameStartCountdown';
 import { createInitialBoard, formatTime, timeControlOptions } from '../utils/chessUtils';
 import { ChessBoard as ChessBoardType, PieceColor, TimeControl } from '../utils/chessTypes';
 import { useToast } from "@/hooks/use-toast";
@@ -13,8 +14,19 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import Header from '@/components/Header';
 import { useWallet } from '../integrations/solana/wallet';
-import { createGame, updateGameState, endGame, subscribeToGame, GameData } from '../utils/supabaseClient';
+import { 
+  createGame, 
+  updateGameState, 
+  endGame, 
+  subscribeToGame, 
+  GameData, 
+  joinGame, 
+  startGame,
+  checkGameInactivity,
+  abortGame
+} from '../utils/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { chessGameContract, executeChessContractMethod } from '../integrations/solana/chessSmartContract';
 
 interface GamePageProps {
   gameId?: string;
@@ -22,6 +34,9 @@ interface GamePageProps {
   stake: number;
   playerColor?: PieceColor;
 }
+
+// Game states
+type GameState = 'initializing' | 'waiting' | 'countdown' | 'playing' | 'completed' | 'aborted';
 
 const GamePage: React.FC<GamePageProps> = ({ 
   gameId: propGameId,
@@ -32,11 +47,18 @@ const GamePage: React.FC<GamePageProps> = ({
   // Game state
   const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
   const [gameData, setGameData] = useState<GameData | null>(null);
+  const [gameState, setGameState] = useState<GameState>('initializing');
   const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
   const [showVictoryModal, setShowVictoryModal] = useState(false);
   const [showStakeModal, setShowStakeModal] = useState(false);
   const [stakeConfirmed, setStakeConfirmed] = useState(false);
   const [gameWinner, setGameWinner] = useState<'you' | string | null>(null);
+  const [opponentJoined, setOpponentJoined] = useState(false);
+  const [countdownComplete, setCountdownComplete] = useState(false);
+  const [firstMoveMade, setFirstMoveMade] = useState(false);
+
+  // Inactivity timer
+  const inactivityCheckInterval = useRef<NodeJS.Timeout | null>(null);
   
   // Router and UI hooks
   const { toast } = useToast();
@@ -47,7 +69,7 @@ const GamePage: React.FC<GamePageProps> = ({
   const urlParams = useParams<{ id?: string }>();
   
   // Determine the actual game ID from props or URL
-  const gameId = propGameId || urlParams.id || "practice";
+  const gameId = propGameId || urlParams.id || location.state?.gameId || "practice";
   const isPracticeMode = gameId === "practice";
 
   // Get game settings from location state if available
@@ -81,21 +103,43 @@ const GamePage: React.FC<GamePageProps> = ({
     try {
       // Call smart contract to handle the stake
       if (wallet && wallet.connected) {
-        const result = await smartContractExecute('createGame', [stake, timeControl.startTime]);
-        if (result.success) {
-          setStakeConfirmed(true);
-          setShowStakeModal(false);
-          
-          toast({
-            title: "Stake Confirmed",
-            description: `Successfully staked ${stake} SOL on this game`,
-          });
-        } else {
-          toast({
-            title: "Stake Failed",
-            description: result.error?.message || "Failed to stake funds",
-            variant: "destructive",
-          });
+        // For game creator
+        if (playerColor === 'white') {
+          const result = await executeChessContractMethod('createGame', [stake, timeControl.startTime]);
+          if (result.success) {
+            setStakeConfirmed(true);
+            setShowStakeModal(false);
+            
+            toast({
+              title: "Stake Confirmed",
+              description: `Successfully staked ${stake} SOL on this game`,
+            });
+          } else {
+            toast({
+              title: "Stake Failed",
+              description: result.error?.message || "Failed to stake funds",
+              variant: "destructive",
+            });
+          }
+        } 
+        // For player joining the game
+        else {
+          const result = await executeChessContractMethod('joinGame', [gameId, stake]);
+          if (result.success) {
+            setStakeConfirmed(true);
+            setShowStakeModal(false);
+            
+            toast({
+              title: "Stake Confirmed",
+              description: `Successfully staked ${stake} SOL to join this game`,
+            });
+          } else {
+            toast({
+              title: "Stake Failed",
+              description: result.error?.message || "Failed to stake funds",
+              variant: "destructive",
+            });
+          }
         }
       }
     } catch (error: any) {
@@ -116,8 +160,9 @@ const GamePage: React.FC<GamePageProps> = ({
       const initialBoard = createInitialBoard();
       initialBoard.whiteTime = timeControl.startTime;
       initialBoard.blackTime = timeControl.startTime;
-      initialBoard.isTimerRunning = true;
+      initialBoard.isTimerRunning = false; // Don't start timer yet
       setBoard(initialBoard);
+      setGameState('playing');
       
       toast({
         title: "Practice Mode",
@@ -130,6 +175,7 @@ const GamePage: React.FC<GamePageProps> = ({
         const initialBoard = createInitialBoard();
         initialBoard.whiteTime = timeControl.startTime;
         initialBoard.blackTime = timeControl.startTime;
+        initialBoard.isTimerRunning = false; // Timer starts after countdown
         
         createGame({
           hostId: wallet.publicKey,
@@ -139,33 +185,155 @@ const GamePage: React.FC<GamePageProps> = ({
           initialBoard
         }).then(data => {
           if (data) {
+            setBoard(initialBoard);
             setGameData(data);
+            setGameState('waiting');
+            
             // Redirect to the game page with the new game ID
-            navigate(`/game/${data.id}`, { replace: true });
+            navigate(`/game/${data.id}`, { 
+              replace: true,
+              state: {
+                timeControl,
+                stake,
+                playerColor: 'white'
+              }
+            });
             
             toast({
               title: "Game Created",
               description: `Waiting for an opponent to join`,
             });
+            
+            // Set up subscription to listen for opponent joining
+            const subscription = subscribeToGame(data.id, (payload) => {
+              const updatedGame = payload.new as GameData;
+              
+              // Check if opponent has joined
+              if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
+                setOpponentJoined(true);
+                setGameState('countdown');
+                toast({
+                  title: "Opponent Joined",
+                  description: "The game will start shortly!",
+                });
+              }
+              
+              // Update game data
+              setGameData(updatedGame);
+            });
+            
+            setSubscription(subscription);
           }
         });
-      } else {
-        // Load existing game
+      } else if (gameId !== 'practice') {
+        // Load and join existing game
         // This would fetch the game from Supabase and set up realtime subscription
-        // For now, we'll use practice mode settings
-        const initialBoard = createInitialBoard();
-        initialBoard.whiteTime = timeControl.startTime;
-        initialBoard.blackTime = timeControl.startTime;
-        initialBoard.isTimerRunning = true;
-        setBoard(initialBoard);
+        setGameState('waiting');
+        
+        // First, join the game if user is joining
+        if (playerColor === 'black' && wallet.publicKey) {
+          joinGame(gameId, wallet.publicKey).then(success => {
+            if (success) {
+              setGameState('countdown');
+              toast({
+                title: "Joined Game",
+                description: "Successfully joined the game. Starting countdown...",
+              });
+            } else {
+              toast({
+                title: "Join Failed",
+                description: "Could not join the game. It may no longer be available.",
+                variant: "destructive",
+              });
+              navigate('/');
+            }
+          });
+        }
+        
+        // Set up subscription to listen for game updates
+        const subscription = subscribeToGame(gameId, (payload) => {
+          const updatedGame = payload.new as GameData;
+          
+          // Update game data
+          setGameData(updatedGame);
+          
+          // Handle game state changes
+          if (updatedGame.status === 'active' && !opponentJoined && updatedGame.opponent_id) {
+            setOpponentJoined(true);
+            setGameState('countdown');
+          } else if (updatedGame.status === 'completed') {
+            setGameState('completed');
+            const isWinner = updatedGame.winner_id === wallet.publicKey;
+            setGameWinner(isWinner ? 'you' : updatedGame.current_turn === 'white' ? 'black' : 'white');
+            setShowVictoryModal(true);
+          } else if (updatedGame.status === 'aborted') {
+            setGameState('aborted');
+            toast({
+              title: "Game Aborted",
+              description: "The game was aborted.",
+              variant: "destructive",
+            });
+            navigate('/');
+          }
+        });
+        
+        setSubscription(subscription);
       }
     }
-  }, [gameId, wallet?.publicKey, stakeConfirmed]);
+    
+    // Cleanup function
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+      
+      if (inactivityCheckInterval.current) {
+        clearInterval(inactivityCheckInterval.current);
+      }
+    };
+  }, [gameId, wallet?.publicKey, stakeConfirmed, navigate]);
+
+  // Handle countdown completion
+  const handleCountdownComplete = useCallback(() => {
+    setCountdownComplete(true);
+    setGameState('playing');
+    
+    // Start the game in the database
+    if (!isPracticeMode && gameData) {
+      startGame(gameData.id);
+    }
+    
+    // Start inactivity check for first move (30 second limit)
+    if (!isPracticeMode && gameData && playerColor === 'black') {
+      inactivityCheckInterval.current = setInterval(() => {
+        checkGameInactivity(gameData.id).then(({ inactive }) => {
+          if (inactive && !firstMoveMade) {
+            // If inactive and first move not made, abort the game
+            abortGame(gameData.id, 'inactivity').then(() => {
+              toast({
+                title: "Game Aborted",
+                description: "White player did not make a move within 30 seconds.",
+                variant: "destructive",
+              });
+              setGameState('aborted');
+              navigate('/');
+            });
+            
+            // Clear the interval
+            if (inactivityCheckInterval.current) {
+              clearInterval(inactivityCheckInterval.current);
+              inactivityCheckInterval.current = null;
+            }
+          }
+        });
+      }, 5000); // Check every 5 seconds
+    }
+  }, [isPracticeMode, gameData, playerColor, navigate]);
 
   // Set up timer
   useEffect(() => {
-    // Only start the timer in practice mode or if the game is active
-    if ((isPracticeMode || (gameData && gameData.status === 'active')) && stakeConfirmed) {
+    // Only start the timer when the game is in playing state and countdown is complete
+    if (gameState === 'playing' && countdownComplete && board && stakeConfirmed) {
       const timer = setInterval(() => {
         setBoard((prevBoard) => {
           if (!prevBoard.isTimerRunning || prevBoard.gameOver) {
@@ -187,6 +355,7 @@ const GamePage: React.FC<GamePageProps> = ({
             // Show victory modal
             setGameWinner(winner === playerColor ? 'you' : winner);
             setShowVictoryModal(true);
+            setGameState('completed');
             
             toast({
               title: "Time's Up!",
@@ -219,10 +388,27 @@ const GamePage: React.FC<GamePageProps> = ({
 
       return () => clearInterval(timer);
     }
-  }, [isPracticeMode, gameData, toast, playerColor, stakeConfirmed]);
+  }, [gameState, countdownComplete, isPracticeMode, gameData, toast, playerColor, stakeConfirmed]);
 
   // Handle piece movement
   const handleMove = useCallback((from, to) => {
+    // The first move starts the timer
+    if (!firstMoveMade) {
+      setFirstMoveMade(true);
+      
+      // Start timer on first move
+      setBoard(prevBoard => ({
+        ...prevBoard,
+        isTimerRunning: true
+      }));
+      
+      // Clear inactivity check
+      if (inactivityCheckInterval.current) {
+        clearInterval(inactivityCheckInterval.current);
+        inactivityCheckInterval.current = null;
+      }
+    }
+    
     // Add increment after move
     setBoard((prevBoard) => {
       const updatedBoard = { ...prevBoard };
@@ -238,6 +424,7 @@ const GamePage: React.FC<GamePageProps> = ({
       if (prevBoard.gameOver && !showVictoryModal) {
         setGameWinner(prevBoard.winner === playerColor ? 'you' : prevBoard.winner || null);
         setShowVictoryModal(true);
+        setGameState('completed');
       }
       
       return updatedBoard;
@@ -250,7 +437,7 @@ const GamePage: React.FC<GamePageProps> = ({
         return prevBoard;
       });
     }
-  }, [isPracticeMode, gameData, timeControl, playerColor, showVictoryModal]);
+  }, [isPracticeMode, gameData, timeControl, playerColor, showVictoryModal, firstMoveMade]);
 
   // Handle new game creation
   const handleNewGame = () => {
@@ -282,10 +469,70 @@ const GamePage: React.FC<GamePageProps> = ({
       return;
     }
 
-    toast({
-      title: "Coming Soon",
-      description: "This feature is not yet fully implemented",
-    });
+    navigate('/');
+  };
+
+  // Render game content based on the current state
+  const renderGameContent = () => {
+    if (gameState === 'waiting') {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center p-8 bg-card/90 backdrop-blur rounded-lg border border-solana/20 shadow-xl max-w-md">
+            <h2 className="text-2xl font-bold mb-4">Waiting for Opponent</h2>
+            <p className="text-gray-400 mb-6">Share this game link with someone to play against</p>
+            <div className="p-4 bg-background/50 rounded-md mb-6 font-mono text-sm break-all">
+              {window.location.href}
+            </div>
+            <Button
+              onClick={() => navigator.clipboard.writeText(window.location.href)}
+              variant="outline"
+              className="w-full"
+            >
+              Copy Link
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    if (gameState === 'countdown') {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <GameStartCountdown 
+            playerColor={playerColor}
+            onCountdownComplete={handleCountdownComplete}
+            opponentName={gameData?.host_id.substring(0, 8) + '...' || 'Opponent'}
+            stake={stake}
+          />
+        </div>
+      );
+    }
+    
+    return (
+      <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8 items-center justify-center flex-1`}>
+        <div className={`${isMobile ? 'w-full' : 'flex-1'} flex justify-center items-start`}>
+          <ChessBoard 
+            playerColor={playerColor}
+            gameId={gameId !== 'practice' ? gameId : undefined}
+            onMove={handleMove}
+            readOnly={gameState !== 'playing'}
+          />
+        </div>
+        
+        <div className={`${isMobile ? 'w-full mt-4' : 'w-80'}`}>
+          <GameInfo 
+            whiteTime={board.whiteTime} 
+            blackTime={board.blackTime}
+            currentTurn={board.currentTurn}
+            capturedPieces={board.capturedPieces}
+            moveHistory={board.moveHistory}
+            gameOver={board.gameOver || gameState === 'completed' || gameState === 'aborted'}
+            winner={board.winner}
+            stake={stake}
+          />
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -313,28 +560,7 @@ const GamePage: React.FC<GamePageProps> = ({
           Back to Home
         </Button>
         
-        <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8 items-center justify-center flex-1`}>
-          <div className={`${isMobile ? 'w-full' : 'flex-1'} flex justify-center items-start`}>
-            <ChessBoard 
-              playerColor={playerColor}
-              gameId={gameId !== 'practice' ? gameId : undefined}
-              onMove={handleMove}
-            />
-          </div>
-          
-          <div className={`${isMobile ? 'w-full mt-4' : 'w-80'}`}>
-            <GameInfo 
-              whiteTime={board.whiteTime} 
-              blackTime={board.blackTime}
-              currentTurn={board.currentTurn}
-              capturedPieces={board.capturedPieces}
-              moveHistory={board.moveHistory}
-              gameOver={board.gameOver}
-              winner={board.winner}
-              stake={stake}
-            />
-          </div>
-        </div>
+        {renderGameContent()}
       </div>
       
       {/* Victory Modal */}

@@ -21,12 +21,14 @@ export interface GameData {
   time_white: number;
   time_black: number;
   stake: number;
-  status: 'waiting' | 'active' | 'completed';
+  status: 'waiting' | 'active' | 'completed' | 'aborted';
   winner_id?: string;
   created_at: string;
   board_state: ChessBoard;
   move_history: string[];
   current_turn: PieceColor;
+  start_time?: string; // When the game actually started (after countdown)
+  last_activity?: string; // Last activity timestamp for inactivity detection
 }
 
 // Convert ChessBoard to JSON-compatible object
@@ -56,7 +58,8 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
       status: 'waiting' as const,
       board_state: boardToJson(initialBoard),
       move_history: [],
-      current_turn: 'white'
+      current_turn: 'white',
+      last_activity: new Date().toISOString()
     })
     .select()
     .single();
@@ -70,18 +73,39 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
     ...data,
     board_state: jsonToBoard(data.board_state),
     move_history: Array.isArray(data.move_history) ? data.move_history.map(move => String(move)) : [],
-    status: data.status as 'waiting' | 'active' | 'completed',
+    status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: data.current_turn as PieceColor
   };
 };
 
 // Join an existing game
 export const joinGame = async (gameId: string, opponentId: string): Promise<boolean> => {
+  // First, check if the game exists and is available to join
+  const { data: game, error: gameError } = await supabase
+    .from('chess_games')
+    .select('*')
+    .eq('id', gameId)
+    .eq('status', 'waiting')
+    .single();
+    
+  if (gameError || !game) {
+    console.error('Error finding game or game not available:', gameError);
+    return false;
+  }
+  
+  // Prevent joining own game
+  if (game.host_id === opponentId) {
+    console.error('Cannot join your own game');
+    return false;
+  }
+  
+  // Update game with opponent and set status to active
   const { error } = await supabase
     .from('chess_games')
     .update({ 
       opponent_id: opponentId,
-      status: 'active' as const
+      status: 'active' as const,
+      last_activity: new Date().toISOString()
     })
     .eq('id', gameId)
     .eq('status', 'waiting');
@@ -94,13 +118,20 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
   return true;
 };
 
-// Get available games
-export const getAvailableGames = async (): Promise<GameData[]> => {
-  const { data, error } = await supabase
+// Get available games (excluding games created by the current user)
+export const getAvailableGames = async (currentUserId?: string): Promise<GameData[]> => {
+  let query = supabase
     .from('chess_games')
     .select('*')
     .eq('status', 'waiting')
     .order('created_at', { ascending: false });
+  
+  // If currentUserId is provided, exclude games created by the current user
+  if (currentUserId) {
+    query = query.neq('host_id', currentUserId);
+  }
+    
+  const { data, error } = await query;
     
   if (error) {
     console.error('Error fetching available games:', error);
@@ -111,9 +142,30 @@ export const getAvailableGames = async (): Promise<GameData[]> => {
     ...game,
     board_state: jsonToBoard(game.board_state),
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
-    status: game.status as 'waiting' | 'active' | 'completed',
+    status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: game.current_turn as PieceColor
   }));
+};
+
+// Start the game after countdown
+export const startGame = async (gameId: string): Promise<boolean> => {
+  const startTime = new Date().toISOString();
+  
+  const { error } = await supabase
+    .from('chess_games')
+    .update({
+      start_time: startTime,
+      last_activity: startTime
+    })
+    .eq('id', gameId)
+    .eq('status', 'active');
+    
+  if (error) {
+    console.error('Error starting game:', error);
+    return false;
+  }
+  
+  return true;
 };
 
 // Update game state
@@ -129,7 +181,8 @@ export const updateGameState = async (
       move_history: moveHistory,
       current_turn: boardState.currentTurn,
       time_white: boardState.whiteTime,
-      time_black: boardState.blackTime
+      time_black: boardState.blackTime,
+      last_activity: new Date().toISOString()
     })
     .eq('id', gameId);
     
@@ -147,7 +200,8 @@ export const endGame = async (gameId: string, winnerId: string): Promise<boolean
     .from('chess_games')
     .update({ 
       status: 'completed' as const,
-      winner_id: winnerId
+      winner_id: winnerId,
+      last_activity: new Date().toISOString()
     })
     .eq('id', gameId);
     
@@ -157,6 +211,59 @@ export const endGame = async (gameId: string, winnerId: string): Promise<boolean
   }
   
   return true;
+};
+
+// Abort game due to inactivity or other reason
+export const abortGame = async (gameId: string, reason: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('chess_games')
+    .update({ 
+      status: 'aborted' as const,
+      last_activity: new Date().toISOString()
+    })
+    .eq('id', gameId);
+    
+  if (error) {
+    console.error(`Error aborting game: ${reason}`, error);
+    return false;
+  }
+  
+  return true;
+};
+
+// Check for inactivity (e.g., black didn't make first move within 30 seconds)
+export const checkGameInactivity = async (gameId: string): Promise<{ inactive: boolean, lastActivity: string }> => {
+  const { data, error } = await supabase
+    .from('chess_games')
+    .select('start_time, last_activity, move_history, status')
+    .eq('id', gameId)
+    .single();
+    
+  if (error || !data) {
+    console.error('Error checking game inactivity:', error);
+    return { inactive: false, lastActivity: new Date().toISOString() };
+  }
+  
+  // Only check active games
+  if (data.status !== 'active') {
+    return { inactive: false, lastActivity: data.last_activity || data.start_time || '' };
+  }
+  
+  // Calculate inactivity time
+  const now = new Date();
+  const lastActivity = new Date(data.last_activity || data.start_time || now);
+  const inactivitySeconds = (now.getTime() - lastActivity.getTime()) / 1000;
+  
+  // First move not made within 30 seconds of start
+  const noMoves = !data.move_history || data.move_history.length === 0;
+  
+  // Consider inactive if no moves made within 30 seconds of game start
+  const inactive = noMoves && inactivitySeconds > 30;
+  
+  return { 
+    inactive, 
+    lastActivity: data.last_activity || data.start_time || ''
+  };
 };
 
 // Subscribe to game changes

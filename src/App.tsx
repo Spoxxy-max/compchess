@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +8,7 @@ import { Suspense } from "react";
 import Index from "./pages/Index";
 import GamePage from "./pages/GamePage";
 import NotFound from "./pages/NotFound";
+import SmartContractConfig from './pages/SmartContractConfig';
 import { timeControlOptions } from "./utils/chessUtils";
 
 const queryClient = new QueryClient({
@@ -37,7 +37,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/game" element={<GamePage timeControl={timeControlOptions[0]} stake={0} />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/smart-contract" element={<SmartContractConfig />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </WalletProvider>

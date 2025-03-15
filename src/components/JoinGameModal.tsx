@@ -8,6 +8,7 @@ import { formatTime, timeControlOptions } from '../utils/chessUtils';
 import { Timer, User, Loader2 } from 'lucide-react';
 import { getAvailableGames, GameData } from '../utils/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
+import { useWallet } from '../integrations/solana/wallet';
 
 interface JoinGameModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   const [availableGames, setAvailableGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { wallet } = useWallet();
 
   useEffect(() => {
     if (isOpen) {
@@ -30,7 +32,8 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   const fetchAvailableGames = async () => {
     setLoading(true);
     try {
-      const games = await getAvailableGames();
+      // Exclude user's own games when fetching
+      const games = await getAvailableGames(wallet?.publicKey);
       setAvailableGames(games);
     } catch (error) {
       console.error("Error fetching games:", error);
@@ -140,7 +143,7 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
             Cancel
           </Button>
           <Button 
-            className="bg-solana hover: bg-solana-dark text-white" 
+            className="bg-solana hover:bg-solana-dark text-white" 
             onClick={handleJoinGame}
             disabled={!selectedGameId}
           >
