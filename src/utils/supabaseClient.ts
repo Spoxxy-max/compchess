@@ -245,18 +245,19 @@ export const checkGameInactivity = async (gameId: string): Promise<{ inactive: b
   
   // Calculate inactivity time
   const now = new Date();
-  const lastActivity = new Date();
+  const lastActivity = now.toISOString();
   const inactivitySeconds = 30; // Assume 30 seconds for simplicity
   
   // First move not made within 30 seconds of start
-  const noMoves = !data.move_history || data.move_history.length === 0;
+  // Fix: Check if move_history is an array before accessing length property
+  const noMoves = !data.move_history || (Array.isArray(data.move_history) && data.move_history.length === 0);
   
   // Consider inactive if no moves made within 30 seconds of game start
   const inactive = noMoves && inactivitySeconds > 30;
   
   return { 
     inactive, 
-    lastActivity: now.toISOString()
+    lastActivity
   };
 };
 
