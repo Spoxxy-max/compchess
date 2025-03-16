@@ -1,4 +1,3 @@
-
 import { createContext, useContext } from 'react';
 import { PublicKey } from '@solana/web3.js';
 
@@ -332,7 +331,7 @@ export const useWallet = () => useContext(WalletContext);
 declare global {
   interface Window {
     phantom?: {
-      solana?: {
+      solana: {
         connect: () => Promise<{ publicKey: { toString: () => string } }>;
         disconnect: () => Promise<void>;
         publicKey?: { toString: () => string };
