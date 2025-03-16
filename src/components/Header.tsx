@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
       </div>
       
       <div className="flex items-center gap-2">
-        {/* Removed New Game and Join Game buttons as requested */}
+        {/* No buttons for New Game or Join Game */}
         
         <Button 
           onClick={handleSmartContractConfig}
