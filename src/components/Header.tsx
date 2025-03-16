@@ -43,20 +43,20 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
           className="text-xl font-bold mr-2 cursor-pointer hover:text-primary transition-colors" 
           onClick={handleNavigateHome}
         >
-          ChessNexus
+          CompChess
         </h1>
-        <span className="text-sm text-muted-foreground">Battle</span>
+        <span className="text-sm text-muted-foreground">&#9812;</span>
       </div>
       
       <div className="flex items-center gap-2">
-        <Button 
+        {/* <Button 
           onClick={handleSmartContractConfig}
           variant="outline"
           className="hidden sm:flex items-center gap-2 hover:bg-primary/10 active:scale-95 transition-all"
         >
           <Settings className="w-4 h-4" />
           Smart Contract
-        </Button>
+        </Button> */}
         
         {wallet?.connected ? (
           <Button 

@@ -213,11 +213,12 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="mt-8">
+          </div>
+          
+        </div>
+        <div className="mt-8">
               <TournamentPlaceholder />
             </div>
-          </div>
-        </div>
       </main>
       
       <NewGameModal 
