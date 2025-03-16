@@ -118,7 +118,7 @@ const Index = () => {
               </span>
             </h1>
             <p className="text-lg mb-8 text-gray-300 leading-relaxed max-w-xl">
-              CompChess is a decentralized chess platform where you can challenge opponents 
+              CompChess is a chess platform where you can challenge opponents 
               and compete for SOL stakes in secure, transparent matches powered by blockchain technology.
             </p>
             <div className="space-y-5">
