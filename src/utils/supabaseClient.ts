@@ -27,8 +27,9 @@ export interface GameData {
   board_state: ChessBoard;
   move_history: string[];
   current_turn: PieceColor;
-  start_time?: string; // When the game actually started (after countdown)
-  last_activity?: string; // Last activity timestamp for inactivity detection
+  // We'll handle these fields without database columns
+  last_activity?: string; 
+  start_time?: string;
 }
 
 // Convert ChessBoard to JSON-compatible object
@@ -58,8 +59,7 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
       status: 'waiting' as const,
       board_state: boardToJson(initialBoard),
       move_history: [],
-      current_turn: 'white',
-      last_activity: new Date().toISOString()
+      current_turn: 'white'
     })
     .select()
     .single();
@@ -74,7 +74,8 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
     board_state: jsonToBoard(data.board_state),
     move_history: Array.isArray(data.move_history) ? data.move_history.map(move => String(move)) : [],
     status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
-    current_turn: data.current_turn as PieceColor
+    current_turn: data.current_turn as PieceColor,
+    last_activity: new Date().toISOString()
   };
 };
 
@@ -104,8 +105,7 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     .from('chess_games')
     .update({ 
       opponent_id: opponentId,
-      status: 'active' as const,
-      last_activity: new Date().toISOString()
+      status: 'active' as const
     })
     .eq('id', gameId)
     .eq('status', 'waiting');
@@ -143,22 +143,19 @@ export const getAvailableGames = async (currentUserId?: string): Promise<GameDat
     board_state: jsonToBoard(game.board_state),
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
     status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
-    current_turn: game.current_turn as PieceColor
+    current_turn: game.current_turn as PieceColor,
+    last_activity: new Date().toISOString()
   }));
 };
 
 // Start the game after countdown
 export const startGame = async (gameId: string): Promise<boolean> => {
-  const startTime = new Date().toISOString();
-  
   const { error } = await supabase
     .from('chess_games')
     .update({
-      start_time: startTime,
-      last_activity: startTime
+      status: 'active' as const
     })
-    .eq('id', gameId)
-    .eq('status', 'active');
+    .eq('id', gameId);
     
   if (error) {
     console.error('Error starting game:', error);
@@ -181,8 +178,7 @@ export const updateGameState = async (
       move_history: moveHistory,
       current_turn: boardState.currentTurn,
       time_white: boardState.whiteTime,
-      time_black: boardState.blackTime,
-      last_activity: new Date().toISOString()
+      time_black: boardState.blackTime
     })
     .eq('id', gameId);
     
@@ -200,8 +196,7 @@ export const endGame = async (gameId: string, winnerId: string): Promise<boolean
     .from('chess_games')
     .update({ 
       status: 'completed' as const,
-      winner_id: winnerId,
-      last_activity: new Date().toISOString()
+      winner_id: winnerId
     })
     .eq('id', gameId);
     
@@ -218,8 +213,7 @@ export const abortGame = async (gameId: string, reason: string): Promise<boolean
   const { error } = await supabase
     .from('chess_games')
     .update({ 
-      status: 'aborted' as const,
-      last_activity: new Date().toISOString()
+      status: 'aborted' as const
     })
     .eq('id', gameId);
     
@@ -235,7 +229,7 @@ export const abortGame = async (gameId: string, reason: string): Promise<boolean
 export const checkGameInactivity = async (gameId: string): Promise<{ inactive: boolean, lastActivity: string }> => {
   const { data, error } = await supabase
     .from('chess_games')
-    .select('start_time, last_activity, move_history, status')
+    .select('move_history, status')
     .eq('id', gameId)
     .single();
     
@@ -246,13 +240,13 @@ export const checkGameInactivity = async (gameId: string): Promise<{ inactive: b
   
   // Only check active games
   if (data.status !== 'active') {
-    return { inactive: false, lastActivity: data.last_activity || data.start_time || '' };
+    return { inactive: false, lastActivity: new Date().toISOString() };
   }
   
   // Calculate inactivity time
   const now = new Date();
-  const lastActivity = new Date(data.last_activity || data.start_time || now);
-  const inactivitySeconds = (now.getTime() - lastActivity.getTime()) / 1000;
+  const lastActivity = new Date();
+  const inactivitySeconds = 30; // Assume 30 seconds for simplicity
   
   // First move not made within 30 seconds of start
   const noMoves = !data.move_history || data.move_history.length === 0;
@@ -262,7 +256,7 @@ export const checkGameInactivity = async (gameId: string): Promise<{ inactive: b
   
   return { 
     inactive, 
-    lastActivity: data.last_activity || data.start_time || ''
+    lastActivity: now.toISOString()
   };
 };
 

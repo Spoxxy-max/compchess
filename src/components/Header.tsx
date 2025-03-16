@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,15 @@ import { useWallet } from '../integrations/solana/wallet';
 const Header = ({ onNewGame, onJoinGame }: { onNewGame: () => void, onJoinGame: () => void }) => {
   const { wallet, connectWallet, disconnectWallet } = useWallet();
   const isLoggedIn = wallet?.connected;
+
+  // Fix the type error by creating a proper event handler
+  const handleConnectWallet = () => {
+    connectWallet();
+  };
+
+  const handleDisconnectWallet = () => {
+    disconnectWallet();
+  };
 
   return (
     <header className="bg-card/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-40">
@@ -23,12 +33,12 @@ const Header = ({ onNewGame, onJoinGame }: { onNewGame: () => void, onJoinGame: 
           </Link>
           {isLoggedIn ? (
             <>
-              <Button variant="outline" size="sm" onClick={disconnectWallet}>
+              <Button variant="outline" size="sm" onClick={handleDisconnectWallet}>
                 Disconnect Wallet
               </Button>
             </>
           ) : (
-            <Button size="sm" onClick={connectWallet} className="bg-solana hover:bg-solana-dark text-white">
+            <Button size="sm" onClick={handleConnectWallet} className="bg-solana hover:bg-solana-dark text-white">
               Connect Wallet
             </Button>
           )}
