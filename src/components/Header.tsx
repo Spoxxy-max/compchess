@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
     <header className="py-4 px-6 bg-card border-b border-border flex items-center justify-between">
       <div className="flex items-center">
         <h1 
-          className="text-xl font-bold mr-2 cursor-pointer" 
+          className="text-xl font-bold mr-2 cursor-pointer hover:text-primary transition-colors" 
           onClick={handleNavigateHome}
         >
           ChessNexus
@@ -52,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
         <Button 
           onClick={handleSmartContractConfig}
           variant="outline"
-          className="hidden sm:flex items-center gap-2"
+          className="hidden sm:flex items-center gap-2 hover:bg-primary/10 active:scale-95 transition-all"
         >
           <Settings className="w-4 h-4" />
           Smart Contract
@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
           <Button 
             onClick={handleDisconnectWallet}
             variant="outline"
-            className="gap-2"
+            className="gap-2 hover:bg-destructive/10 active:scale-95 transition-all"
           >
             <WalletIcon className="w-4 h-4" />
             {wallet.publicKey?.substring(0, 4)}...{wallet.publicKey?.substring(wallet.publicKey.length - 4)}
@@ -70,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
         ) : (
           <Button 
             onClick={handleConnectWallet}
-            className="bg-solana hover:bg-solana-dark gap-2"
+            className="bg-solana hover:bg-solana-dark gap-2 active:scale-95 transition-all duration-200 transform shadow-md hover:shadow-lg"
           >
             <WalletIcon className="w-4 h-4" />
             Connect Wallet
