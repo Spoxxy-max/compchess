@@ -1,4 +1,6 @@
+
 import { createContext, useContext } from 'react';
+import { PublicKey } from '@solana/web3.js';
 
 // Wallet adapter interface
 export interface WalletAdapter {
@@ -162,15 +164,31 @@ class TrustWalletAdapter extends BaseWalletAdapter {
 
   async connect(): Promise<void> {
     try {
-      // This is a placeholder implementation for Trust Wallet
-      // In development we'll mock it
-      this.publicKey = "Trust_" + Math.random().toString(36).substring(2, 10);
+      // Check if Trust wallet adapter is available
+      const isTrustWalletInstalled = window.trustwallet || window.solana?.isTrust;
+      
+      if (!isTrustWalletInstalled) {
+        // Mock in development
+        if (process.env.NODE_ENV === 'development') {
+          this.publicKey = "Trust_" + Math.random().toString(36).substring(2, 10);
+          this.connected = true;
+          await this.fetchBalance();
+          console.log('Trust Wallet connected (mock):', this.publicKey);
+          return;
+        }
+        throw new Error('Trust Wallet is not installed');
+      }
+
+      // Connect to the wallet (using actual Trust wallet if available)
+      const provider = window.trustwallet || window.solana;
+      await provider?.connect();
+      this.publicKey = provider?.publicKey?.toString() || null;
       this.connected = true;
       
-      // Fetch mock balance
+      // Fetch balance
       await this.fetchBalance();
       
-      console.log('Trust Wallet connected (mock):', this.publicKey);
+      console.log('Trust Wallet connected:', this.publicKey);
     } catch (error) {
       console.error('Error connecting Trust Wallet:', error);
       throw error;
@@ -179,6 +197,8 @@ class TrustWalletAdapter extends BaseWalletAdapter {
 
   async disconnect(): Promise<void> {
     try {
+      const provider = window.trustwallet || window.solana;
+      await provider?.disconnect?.();
       this.publicKey = null;
       this.connected = false;
       this.balance = 0;
@@ -196,15 +216,30 @@ class BackpackWalletAdapter extends BaseWalletAdapter {
 
   async connect(): Promise<void> {
     try {
-      // This is a placeholder implementation for Backpack
-      // In development we'll mock it
-      this.publicKey = "Backpack_" + Math.random().toString(36).substring(2, 10);
+      // Check if Backpack wallet is installed
+      const isBackpackInstalled = window.backpack?.solana;
+      
+      if (!isBackpackInstalled) {
+        // Mock in development
+        if (process.env.NODE_ENV === 'development') {
+          this.publicKey = "Backpack_" + Math.random().toString(36).substring(2, 10);
+          this.connected = true;
+          await this.fetchBalance();
+          console.log('Backpack wallet connected (mock):', this.publicKey);
+          return;
+        }
+        throw new Error('Backpack wallet is not installed');
+      }
+
+      // Connect to the wallet
+      await window.backpack?.solana.connect();
+      this.publicKey = window.backpack?.solana.publicKey?.toString() || null;
       this.connected = true;
       
-      // Fetch mock balance
+      // Fetch balance
       await this.fetchBalance();
       
-      console.log('Backpack wallet connected (mock):', this.publicKey);
+      console.log('Backpack wallet connected:', this.publicKey);
     } catch (error) {
       console.error('Error connecting Backpack wallet:', error);
       throw error;
@@ -213,6 +248,7 @@ class BackpackWalletAdapter extends BaseWalletAdapter {
 
   async disconnect(): Promise<void> {
     try {
+      await window.backpack?.solana.disconnect?.();
       this.publicKey = null;
       this.connected = false;
       this.balance = 0;
@@ -253,9 +289,21 @@ export const getAvailableWallets = (): { type: WalletType; name: string }[] => {
     wallets.push({ type: 'solflare', name: 'Solflare' });
   }
   
-  // For development purposes, we'll always add these options
-  wallets.push({ type: 'trustwallet', name: 'Trust Wallet' });
-  wallets.push({ type: 'backpack', name: 'Backpack' });
+  if (window.trustwallet || window.solana?.isTrust) {
+    wallets.push({ type: 'trustwallet', name: 'Trust Wallet' });
+  }
+  
+  if (window.backpack?.solana) {
+    wallets.push({ type: 'backpack', name: 'Backpack' });
+  }
+  
+  // For development purposes, we'll always add these options in dev mode
+  if (process.env.NODE_ENV === 'development' && wallets.length === 0) {
+    wallets.push({ type: 'phantom', name: 'Phantom' });
+    wallets.push({ type: 'solflare', name: 'Solflare' });
+    wallets.push({ type: 'trustwallet', name: 'Trust Wallet' });
+    wallets.push({ type: 'backpack', name: 'Backpack' });
+  }
   
   return wallets;
 };
@@ -279,3 +327,39 @@ export const WalletContext = createContext<{
 
 // Hook to use wallet
 export const useWallet = () => useContext(WalletContext);
+
+// Add global types
+declare global {
+  interface Window {
+    phantom?: {
+      solana?: {
+        connect: () => Promise<{ publicKey: { toString: () => string } }>;
+        disconnect: () => Promise<void>;
+        publicKey?: { toString: () => string };
+      };
+    };
+    solflare?: {
+      connect: () => Promise<void>;
+      disconnect: () => Promise<void>;
+      publicKey?: { toString: () => string };
+    };
+    trustwallet?: {
+      connect: () => Promise<void>;
+      disconnect: () => Promise<void>;
+      publicKey?: { toString: () => string };
+    };
+    backpack?: {
+      solana?: {
+        connect: () => Promise<void>;
+        disconnect: () => Promise<void>;
+        publicKey?: { toString: () => string };
+      };
+    };
+    solana?: {
+      connect: () => Promise<void>;
+      disconnect: () => Promise<void>;
+      publicKey?: PublicKey;
+      isTrust?: boolean;
+    };
+  }
+}

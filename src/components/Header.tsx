@@ -1,49 +1,98 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../integrations/solana/wallet';
+import WalletSelector from './WalletSelector';
+import { WalletIcon } from 'lucide-react';
 
-const Header = ({ onNewGame, onJoinGame }: { onNewGame: () => void, onJoinGame: () => void }) => {
+interface HeaderProps {
+  onNewGame?: () => void;
+  onJoinGame?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
   const { wallet, connectWallet, disconnectWallet } = useWallet();
-  const isLoggedIn = wallet?.connected;
+  const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
+  const navigate = useNavigate();
 
-  // Fix the type error by creating a proper event handler
-  const handleConnectWallet = () => {
-    connectWallet();
+  // Handle wallet connect button click
+  const handleConnectWallet = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setIsWalletSelectorOpen(true);
   };
 
-  const handleDisconnectWallet = () => {
+  // Handle wallet disconnect button click
+  const handleDisconnectWallet = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
     disconnectWallet();
   };
 
+  // Navigate to the smart contract config page
+  const handleSmartContractConfig = () => {
+    navigate('/smart-contract-config');
+  };
+
   return (
-    <header className="bg-card/90 backdrop-blur-md border-b border-white/5 sticky top-0 z-40">
-      <div className="container flex items-center justify-between h-16">
-        <Link to="/" className="text-2xl font-bold text-white">
-          CompChess
-        </Link>
-        
-        <nav className="flex items-center space-x-4">
-          <Link 
-            to="/smart-contract" 
-            className="text-gray-400 hover:text-white transition-colors px-3 py-2 text-sm"
-          >
-            Smart Contract
-          </Link>
-          {isLoggedIn ? (
-            <>
-              <Button variant="outline" size="sm" onClick={handleDisconnectWallet}>
-                Disconnect Wallet
-              </Button>
-            </>
-          ) : (
-            <Button size="sm" onClick={handleConnectWallet} className="bg-solana hover:bg-solana-dark text-white">
-              Connect Wallet
-            </Button>
-          )}
-        </nav>
+    <header className="py-4 px-6 bg-card border-b border-border flex items-center justify-between">
+      <div className="flex items-center">
+        <h1 className="text-xl font-bold mr-2">ChessNexus</h1>
+        <span className="text-sm text-muted-foreground">Battle</span>
       </div>
+      
+      <div className="flex items-center gap-2">
+        {onNewGame && (
+          <Button 
+            onClick={onNewGame}
+            variant="ghost" 
+            className="hidden sm:flex"
+          >
+            New Game
+          </Button>
+        )}
+        
+        {onJoinGame && (
+          <Button 
+            onClick={onJoinGame}
+            variant="ghost"
+            className="hidden sm:flex"
+          >
+            Join Game
+          </Button>
+        )}
+        
+        <Button 
+          onClick={handleSmartContractConfig}
+          variant="outline"
+          className="hidden sm:flex"
+        >
+          Smart Contract
+        </Button>
+        
+        {wallet?.connected ? (
+          <Button 
+            onClick={handleDisconnectWallet}
+            variant="outline"
+            className="gap-2"
+          >
+            <WalletIcon className="w-4 h-4" />
+            {wallet.publicKey?.substring(0, 4)}...{wallet.publicKey?.substring(wallet.publicKey.length - 4)}
+          </Button>
+        ) : (
+          <Button 
+            onClick={handleConnectWallet}
+            className="bg-solana hover:bg-solana-dark gap-2"
+          >
+            <WalletIcon className="w-4 h-4" />
+            Connect Wallet
+          </Button>
+        )}
+      </div>
+      
+      <WalletSelector 
+        isOpen={isWalletSelectorOpen} 
+        onClose={() => setIsWalletSelectorOpen(false)} 
+      />
     </header>
   );
 };
