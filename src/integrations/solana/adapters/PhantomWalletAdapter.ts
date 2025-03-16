@@ -10,11 +10,19 @@ export class PhantomWalletAdapter extends BaseWalletAdapter {
       const isPhantomInstalled = window.phantom?.solana;
       
       if (!isPhantomInstalled) {
+        // Mock in development for testing
+        if (process.env.NODE_ENV === 'development') {
+          this.publicKey = "Phantom_" + Math.random().toString(36).substring(2, 10);
+          this.connected = true;
+          this.balance = Math.random() * 10;
+          console.log('Phantom wallet connected (mock):', this.publicKey);
+          return;
+        }
         throw new Error('Phantom wallet is not installed');
       }
 
       // Connect to the wallet
-      const response = await window.phantom?.solana.connect();
+      const response = await window.phantom.solana.connect();
       this.publicKey = response.publicKey.toString();
       this.connected = true;
       
@@ -30,7 +38,9 @@ export class PhantomWalletAdapter extends BaseWalletAdapter {
 
   async disconnect(): Promise<void> {
     try {
-      await window.phantom?.solana.disconnect();
+      if (window.phantom?.solana) {
+        await window.phantom.solana.disconnect();
+      }
       this.publicKey = null;
       this.connected = false;
       this.balance = 0;

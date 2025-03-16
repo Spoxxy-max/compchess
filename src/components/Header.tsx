@@ -33,33 +33,25 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
     navigate('/smart-contract-config');
   };
 
+  // Navigate to home
+  const handleNavigateHome = () => {
+    navigate('/');
+  };
+
   return (
     <header className="py-4 px-6 bg-card border-b border-border flex items-center justify-between">
       <div className="flex items-center">
-        <h1 className="text-xl font-bold mr-2">ChessNexus</h1>
+        <h1 
+          className="text-xl font-bold mr-2 cursor-pointer" 
+          onClick={handleNavigateHome}
+        >
+          ChessNexus
+        </h1>
         <span className="text-sm text-muted-foreground">Battle</span>
       </div>
       
       <div className="flex items-center gap-2">
-        {onNewGame && (
-          <Button 
-            onClick={onNewGame}
-            variant="ghost" 
-            className="hidden sm:flex"
-          >
-            New Game
-          </Button>
-        )}
-        
-        {onJoinGame && (
-          <Button 
-            onClick={onJoinGame}
-            variant="ghost"
-            className="hidden sm:flex"
-          >
-            Join Game
-          </Button>
-        )}
+        {/* Removed New Game and Join Game buttons as requested */}
         
         <Button 
           onClick={handleSmartContractConfig}

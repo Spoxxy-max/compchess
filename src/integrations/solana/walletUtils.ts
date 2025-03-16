@@ -26,6 +26,16 @@ export const createWallet = (type?: WalletType) => {
 export const getAvailableWallets = (): { type: WalletType; name: string }[] => {
   const wallets = [];
   
+  // For development purposes, always provide all wallet options
+  if (process.env.NODE_ENV === 'development') {
+    wallets.push({ type: 'phantom', name: 'Phantom' });
+    wallets.push({ type: 'solflare', name: 'Solflare' });
+    wallets.push({ type: 'trustwallet', name: 'Trust Wallet' });
+    wallets.push({ type: 'backpack', name: 'Backpack' });
+    return wallets;
+  }
+  
+  // For production, check for actual wallet extensions
   if (window.phantom?.solana) {
     wallets.push({ type: 'phantom', name: 'Phantom' });
   }
@@ -39,14 +49,6 @@ export const getAvailableWallets = (): { type: WalletType; name: string }[] => {
   }
   
   if (window.backpack?.solana) {
-    wallets.push({ type: 'backpack', name: 'Backpack' });
-  }
-  
-  // For development purposes, we'll always add these options in dev mode
-  if (process.env.NODE_ENV === 'development' && wallets.length === 0) {
-    wallets.push({ type: 'phantom', name: 'Phantom' });
-    wallets.push({ type: 'solflare', name: 'Solflare' });
-    wallets.push({ type: 'trustwallet', name: 'Trust Wallet' });
     wallets.push({ type: 'backpack', name: 'Backpack' });
   }
   

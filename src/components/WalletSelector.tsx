@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -29,6 +28,7 @@ const WalletSelector: React.FC<WalletSelectorProps> = ({ isOpen, onClose }) => {
       onClose();
     } catch (error) {
       console.error('Failed to connect wallet:', error);
+      // Keep dialog open if there's an error to allow user to try again
     }
   };
 
