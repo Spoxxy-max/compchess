@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../integrations/solana/wallet';
 import WalletSelector from './WalletSelector';
-import { WalletIcon } from 'lucide-react';
+import { Settings, WalletIcon } from 'lucide-react';
 
 interface HeaderProps {
   onNewGame?: () => void;
@@ -17,20 +17,18 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
   const navigate = useNavigate();
 
   // Handle wallet connect button click
-  const handleConnectWallet = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
+  const handleConnectWallet = () => {
     setIsWalletSelectorOpen(true);
   };
 
   // Handle wallet disconnect button click
-  const handleDisconnectWallet = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
+  const handleDisconnectWallet = () => {
     disconnectWallet();
   };
 
   // Navigate to the smart contract config page
   const handleSmartContractConfig = () => {
-    navigate('/smart-contract-config');
+    navigate('/smart-contract');
   };
 
   // Navigate to home
@@ -51,13 +49,12 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
       </div>
       
       <div className="flex items-center gap-2">
-        {/* No buttons for New Game or Join Game */}
-        
         <Button 
           onClick={handleSmartContractConfig}
           variant="outline"
-          className="hidden sm:flex"
+          className="hidden sm:flex items-center gap-2"
         >
+          <Settings className="w-4 h-4" />
           Smart Contract
         </Button>
         
