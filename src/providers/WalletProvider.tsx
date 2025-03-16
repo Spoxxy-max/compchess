@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   WalletContext, 
-  createWallet, 
   WalletAdapter, 
-  getAvailableWallets,
-  WalletType 
+  WalletType,
+  createWallet,
+  getAvailableWallets
 } from '../integrations/solana/wallet';
 import { executeSmartContractMethod } from '../integrations/solana/smartContract';
 import { useToast } from "@/hooks/use-toast";
@@ -20,11 +19,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const location = useLocation();
 
   useEffect(() => {
-    // Get available wallets
     const wallets = getAvailableWallets();
     setAvailableWallets(wallets);
     
-    // Try to auto-connect to the last wallet used
     const lastWalletType = localStorage.getItem('lastWalletType') as WalletType | undefined;
     if (lastWalletType) {
       connectWallet(lastWalletType).catch(err => {
@@ -39,13 +36,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setConnecting(true);
       
-      // Create wallet instance based on type
       const newWallet = createWallet(type);
       
-      // Connect wallet
       await newWallet.connect();
       
-      // Save wallet instance and type
       setWallet(newWallet);
       if (type) localStorage.setItem('lastWalletType', type);
       
@@ -80,7 +74,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         description: "Successfully disconnected from your Solana wallet",
       });
       
-      // Redirect to index page if not already there
       if (location.pathname !== '/') {
         navigate('/');
       }
@@ -93,7 +86,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Smart contract execution function
   const smartContractExecute = async (method: string, params: any) => {
     if (!wallet?.connected) {
       toast({
