@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +13,7 @@ import StakeConfirmationModal from '@/components/StakeConfirmationModal';
 import { GameData } from '@/utils/supabaseClient';
 import NewGameSuccessModal from '@/components/NewGameSuccessModal';
 import IDLLoader from '@/components/IDLLoader';
-import { Rocket, Chess, Shield, TrendingUp } from 'lucide-react';
+import { Rocket, Gamepad, Shield, TrendingUp } from 'lucide-react';
 
 const IndexPage = () => {
   const { wallet } = useWallet();
