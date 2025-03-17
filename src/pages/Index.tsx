@@ -99,7 +99,6 @@ const IndexPage = () => {
     }
   };
 
-  // Handle creating a new game
   const handleCreateGame = async (gameParams: {
     timeControl: string;
     timeIncrement: number;
@@ -117,12 +116,10 @@ const IndexPage = () => {
     try {
       setIsLoading(true);
       
-      // Initialize chessboard
       const initialBoard = createInitialBoard();
       initialBoard.whiteTime = getTimeControlInSeconds(gameParams.timeControl) * 1000; // Convert to ms
       initialBoard.blackTime = initialBoard.whiteTime;
       
-      // Create game in database
       const newGame = await createGame({
         hostId: wallet.publicKey!,
         timeControl: gameParams.timeControl,
@@ -132,13 +129,11 @@ const IndexPage = () => {
       });
       
       if (newGame) {
-        // Show success message instead of navigating
         setCreatedGameId(newGame.id);
         setCreatedGameStake(gameParams.stake);
         setShowNewGameSuccess(true);
         setIsNewGameModalOpen(false);
         
-        // Refresh game list
         fetchAvailableGames();
       } else {
         toast({
@@ -193,7 +188,6 @@ const IndexPage = () => {
         </div>
       )}
       
-      {/* Modals */}
       <NewGameModal 
         isOpen={isNewGameModalOpen} 
         onClose={() => setIsNewGameModalOpen(false)}

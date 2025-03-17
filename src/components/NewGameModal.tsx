@@ -13,10 +13,14 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
 interface NewGameModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateGame: (timeControl: TimeControl, stake: number) => void;
+  onSubmit: (gameParams: { 
+    timeControl: string; 
+    timeIncrement: number; 
+    stake: number;
+  }) => Promise<void>;
 }
 
-const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGame }) => {
+const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControlOption>('blitz');
   const [customMinutes, setCustomMinutes] = useState(5);
   const [customIncrement, setCustomIncrement] = useState(3);
@@ -26,24 +30,28 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
   const handleCreateGame = () => {
     const selectedOption = timeControlOptions.find(option => option.type === selectedTimeControl);
     
-    let timeControl: TimeControl;
+    let timeControlString: string;
+    let increment: number;
     
     if (selectedTimeControl === 'custom') {
-      timeControl = {
-        type: 'custom',
-        startTime: customMinutes * 60,
-        increment: customIncrement,
-        label: `Custom - ${customMinutes}+${customIncrement}`,
-      };
+      timeControlString = `Custom - ${customMinutes}+${customIncrement}`;
+      increment = customIncrement;
     } else if (selectedOption) {
-      timeControl = selectedOption;
+      timeControlString = selectedOption.label;
+      increment = selectedOption.increment;
     } else {
       // Fallback to blitz if something goes wrong
-      timeControl = timeControlOptions[0];
+      timeControlString = 'blitz';
+      increment = 2;
     }
     
-    onCreateGame(timeControl, stake);
-    setGameCreated(true);
+    onSubmit({
+      timeControl: selectedTimeControl === 'custom' 
+        ? `custom_${customMinutes}_${customIncrement}`
+        : selectedTimeControl, 
+      timeIncrement: increment,
+      stake: stake
+    });
   };
 
   const handleClose = () => {
