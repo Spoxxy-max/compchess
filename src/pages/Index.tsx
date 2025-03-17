@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -214,7 +215,7 @@ const IndexPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="bg-card/80 backdrop-blur-md border border-purple-500/20 hover:border-purple-500/50 transition-all duration-300">
             <CardHeader className="pb-2">
-              <Chess className="h-8 w-8 text-purple-400 mb-2" />
+              <Gamepad className="h-8 w-8 text-purple-400 mb-2" />
               <CardTitle>Play Chess</CardTitle>
             </CardHeader>
             <CardContent>
