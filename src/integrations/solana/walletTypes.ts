@@ -15,6 +15,6 @@ export interface WalletAdapter {
 }
 
 // Available wallet types
-export type WalletType = 'phantom' | 'solflare' | 'trustwallet' | 'backpack' | 'coinbase';
+export type WalletType = 'phantom' | 'solflare' | 'trustwallet' | 'backpack' | 'glow' | 'coinbase';
 
 // We're not declaring global Window extensions here anymore as they're in global.d.ts

@@ -1,323 +1,239 @@
-
 import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
+import NewGameModal from '../components/NewGameModal';
+import JoinGameModal from '../components/JoinGameModal';
+import TournamentPlaceholder from '../components/TournamentPlaceholder';
+import { TimeControl, TimeControlOption } from '../utils/chessTypes';
+import { timeControlOptions } from '../utils/chessUtils';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useWallet } from '../integrations/solana/wallet';
-import { createGame, joinGame, getAvailableGames } from '@/utils/supabaseClient';
-import { createInitialBoard } from '@/utils/chessUtils';
-import { getTimeControlInSeconds } from '@/utils/gameUtils';
-import NewGameModal from '@/components/NewGameModal';
-import JoinGameModal from '@/components/JoinGameModal';
-import StakeConfirmationModal from '@/components/StakeConfirmationModal';
-import { GameData } from '@/utils/supabaseClient';
-import NewGameSuccessModal from '@/components/NewGameSuccessModal';
-import IDLLoader from '@/components/IDLLoader';
-import { Rocket, Gamepad, Shield, TrendingUp } from 'lucide-react';
 
-const IndexPage = () => {
-  const { wallet } = useWallet();
-  const [availableGames, setAvailableGames] = useState<GameData[]>([]);
+// Mock data for join game
+const mockAvailableGames = [
+  {
+    id: 'game1',
+    host: 'Player1',
+    timeControl: timeControlOptions[0],
+    stake: 0.1,
+    createdAt: new Date(),
+  },
+  {
+    id: 'game2',
+    host: 'Player2',
+    timeControl: timeControlOptions[1],
+    stake: 0.5,
+    createdAt: new Date(),
+  },
+];
+
+const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
-  const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<GameData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
-  const [showNewGameSuccess, setShowNewGameSuccess] = useState(false);
-  const [createdGameId, setCreatedGameId] = useState('');
-  const [createdGameStake, setCreatedGameStake] = useState(0);
-  const [showIDLLoader, setShowIDLLoader] = useState(false);
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const [animationComplete, setAnimationComplete] = useState(false);
+  const { wallet, connectWallet } = useWallet();
+  
+  const isLoggedIn = wallet?.connected;
 
+  // Simulate animation completion
   useEffect(() => {
-    fetchAvailableGames();
-  }, [wallet?.publicKey]);
+    const timer = setTimeout(() => {
+      setAnimationComplete(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const fetchAvailableGames = async () => {
-    setIsLoading(true);
-    try {
-      const games = await getAvailableGames(wallet?.publicKey);
-      setAvailableGames(games);
-    } catch (error: any) {
-      console.error('Error fetching available games:', error);
+  const handleNewGame = () => {
+    if (isLoggedIn) {
+      setIsNewGameModalOpen(true);
+    } else {
       toast({
-        title: "Error fetching games",
-        description: error.message || "Failed to retrieve available games",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOpenNewGameModal = () => {
-    setIsNewGameModalOpen(true);
-  };
-
-  const handleJoinGame = (game: GameData) => {
-    setSelectedGame(game);
-    setIsJoinGameModalOpen(true);
-  };
-
-  const handleConfirmJoin = async () => {
-    if (!selectedGame) return;
-
-    setIsJoinGameModalOpen(false);
-    setIsStakeModalOpen(true);
-  };
-
-  const handleConfirmStake = async () => {
-    if (!selectedGame || !wallet?.publicKey) return;
-
-    setIsStakeModalOpen(false);
-    setIsLoading(true);
-
-    try {
-      const success = await joinGame(selectedGame.id, wallet.publicKey);
-      if (success) {
-        toast({
-          title: "Game Joined",
-          description: "You have successfully joined the game!",
-        });
-        navigate(`/game/${selectedGame.id}`);
-      } else {
-        toast({
-          title: "Failed to Join",
-          description: "Could not join the selected game.",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error joining game:', error);
-      toast({
-        title: "Error joining game",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateGame = async (gameParams: {
-    timeControl: string;
-    timeIncrement: number;
-    stake: number;
-  }) => {
-    if (!wallet?.connected) {
-      toast({
-        title: "Wallet not connected",
+        title: "Not Connected",
         description: "Please connect your wallet to create a game",
         variant: "destructive",
       });
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      const initialBoard = createInitialBoard();
-      initialBoard.whiteTime = getTimeControlInSeconds(gameParams.timeControl) * 1000; // Convert to ms
-      initialBoard.blackTime = initialBoard.whiteTime;
-      
-      const newGame = await createGame({
-        hostId: wallet.publicKey!,
-        timeControl: gameParams.timeControl,
-        timeIncrement: gameParams.timeIncrement,
-        stake: gameParams.stake,
-        initialBoard,
-      });
-      
-      if (newGame) {
-        setCreatedGameId(newGame.id);
-        setCreatedGameStake(gameParams.stake);
-        setShowNewGameSuccess(true);
-        setIsNewGameModalOpen(false);
-        
-        fetchAvailableGames();
-      } else {
-        toast({
-          title: "Error creating game",
-          description: "Failed to create a new chess game",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error creating game:', error);
-      toast({
-        title: "Error creating game",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const toggleIDLLoader = () => {
-    setShowIDLLoader(!showIDLLoader);
+  const handleJoinGame = () => {
+    if (isLoggedIn) {
+      setIsJoinGameModalOpen(true);
+    } else {
+      toast({
+        title: "Not Connected",
+        description: "Please connect your wallet to join a game",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConnectWallet = () => {
+    connectWallet();
+  };
+
+  const handleCreateGame = (timeControl: TimeControl, stake: number) => {
+    // Navigate to the game page with the selected settings
+    navigate('/game', { state: { timeControl, stake, playerColor: 'white' } });
+  };
+
+  const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
+    // Navigate to the game page with the selected settings
+    navigate('/game', { 
+      state: { 
+        gameId,
+        timeControl,
+        stake,
+        playerColor: 'black' 
+      } 
+    });
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-900/80 via-black to-black p-8 my-8">
-        <div className="grid-pattern-bg absolute inset-0"></div>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
-          <div className="max-w-2xl">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-              CompChess: Chess on Blockchain
+    <div className="flex flex-col min-h-screen relative overflow-hidden bg-background">
+      {/* Background glow effects for futuristic look */}
+      <div className="absolute -top-20 -left-20 w-96 h-96 bg-solana/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute top-40 -right-20 w-72 h-72 bg-solana/30 rounded-full blur-[100px] animate-pulse" style={{animationDelay: '1s'}} />
+      <div className="absolute -bottom-20 left-1/4 w-80 h-80 bg-solana/25 rounded-full blur-[150px] animate-pulse" style={{animationDelay: '2s'}} />
+      
+      {/* Grid pattern overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(9,9,11,0.1)_0.1px,transparent_0.1px),linear-gradient(to_right,rgba(9,9,11,0.1)_0.1px,transparent_0.1px)] bg-[size:24px_24px] opacity-20" />
+      
+      <Header 
+        onNewGame={handleNewGame}
+        onJoinGame={handleJoinGame}
+      />
+      
+      <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
+        <div className="max-w-6xl w-full mx-auto flex flex-col lg:flex-row items-center gap-12">
+          <div className={`lg:w-1/2 text-left transition-all duration-1000 ease-out ${animationComplete ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
+            <h1 className="text-4xl sm:text-6xl font-bold mb-6 relative">
+              <span className="relative inline-block">
+                Play Chess on <span className="text-solana">Solana</span>
+                <div className="absolute -bottom-2 left-0 h-1 w-24 bg-solana rounded-full"></div>
+              </span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-200 mb-6">
-              Play competitive chess with secure on-chain staking. Challenge opponents, stake SOL, and win rewards for your chess skills.
+            <p className="text-lg mb-8 text-gray-300 leading-relaxed max-w-xl">
+              CompChess is a chess platform where you can challenge opponents 
+              and compete for SOL stakes in secure, transparent matches powered by blockchain technology.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Button 
-                onClick={handleOpenNewGameModal}
-                className="bg-solana hover:bg-solana/90 text-white px-6 py-2 rounded-lg shadow-glow-sm hover:shadow-glow-md transition-all duration-300"
-                size="lg"
-              >
-                Create New Game
-              </Button>
-              <Button 
-                onClick={toggleIDLLoader} 
-                variant="outline" 
-                size="lg"
-                className="border-purple-500/50 hover:bg-purple-500/10"
-              >
-                {showIDLLoader ? "Hide IDL Loader" : "Load Smart Contract IDL"}
-              </Button>
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  onClick={handleNewGame}
+                  className="bg-solana hover:bg-solana-dark text-white px-6 py-6 sm:px-8 text-base sm:text-lg relative group overflow-hidden"
+                  size="lg"
+                >
+                  <span className="relative z-10">Create Game</span>
+                  <span className="absolute inset-0 h-full w-0 bg-white/20 transition-all duration-300 group-hover:w-full"></span>
+                </Button>
+                <Button 
+                  onClick={handleJoinGame}
+                  variant="outline"
+                  className="px-6 py-6 sm:px-8 text-base sm:text-lg border-2 hover:bg-card/80 transition-all duration-300"
+                  size="lg"
+                >
+                  Join Game
+                </Button>
+              </div>
+              {!isLoggedIn && (
+                <p className="text-sm text-gray-400 mt-2 flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 bg-solana rounded-full animate-pulse"></span>
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-solana" 
+                    onClick={handleConnectWallet}
+                  >
+                    Connect your Solana wallet
+                  </Button>
+                  to create or join games with stakes
+                </p>
+              )}
             </div>
           </div>
-          <div className="w-full max-w-md">
-            <div className="relative animate-float">
-              <img 
-                src="/images/pieces/white-king.svg" 
-                alt="Chess King" 
-                className="w-full h-auto max-w-[200px] mx-auto drop-shadow-glow"
-              />
+          
+          <div className={`lg:w-1/2 w-full transition-all duration-1000 ease-out delay-300 ${animationComplete ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <div className="relative">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-solana/50 to-solana-light/30 rounded-lg blur-md"></div>
+              <div className="relative bg-card/90 backdrop-blur-sm border border-white/10 rounded-lg p-6 shadow-xl">
+                <h2 className="text-xl font-semibold mb-6 flex items-center">
+                  <span className="bg-solana h-5 w-1 mr-3 rounded-full"></span>
+                  Features
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Challenge others to 1v1 matches with customizable time controls</p>
+                    </div>
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Stake SOL on games and compete for winnings</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Secure and transparent gameplay with Solana blockchain</p>
+                    </div>
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 h-5 w-5 rounded-full bg-solana-light/80 mt-1 mr-3 flex items-center justify-center">
+                        <div className="h-2 w-2 bg-white rounded-full"></div>
+                      </div>
+                      <p className="text-sm sm:text-base">Choose from Blitz, Rapid, or Classical time controls</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <Button 
+                    onClick={() => navigate('/game', { 
+                      state: { 
+                        timeControl: timeControlOptions[0],
+                        stake: 0,
+                        gameId: 'practice'
+                      } 
+                    })}
+                    variant="secondary"
+                    className="w-full py-5 relative overflow-hidden group"
+                  >
+                    <span className="relative z-10">Play Practice Game (No Stakes)</span>
+                    <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent transition-transform duration-700 -translate-x-full group-hover:translate-x-full"></span>
+                  </Button>
+                </div>
+              </div>
             </div>
+            
           </div>
-        </div>
-      </div>
-
-      {showIDLLoader && (
-        <div className="mb-8">
-          <IDLLoader />
-        </div>
-      )}
-
-      {/* Features Section */}
-      <div className="my-16">
-        <h2 className="text-2xl font-bold mb-8 text-center">Key Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-card/80 backdrop-blur-md border border-purple-500/20 hover:border-purple-500/50 transition-all duration-300">
-            <CardHeader className="pb-2">
-              <Gamepad className="h-8 w-8 text-purple-400 mb-2" />
-              <CardTitle>Play Chess</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300">Full-featured chess with time controls, move validation, and game history.</p>
-            </CardContent>
-          </Card>
           
-          <Card className="bg-card/80 backdrop-blur-md border border-emerald-500/20 hover:border-emerald-500/50 transition-all duration-300">
-            <CardHeader className="pb-2">
-              <TrendingUp className="h-8 w-8 text-emerald-400 mb-2" />
-              <CardTitle>Stake SOL</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300">Stake Solana on your games. Winners receive the full staked amount securely.</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card/80 backdrop-blur-md border border-blue-500/20 hover:border-blue-500/50 transition-all duration-300">
-            <CardHeader className="pb-2">
-              <Shield className="h-8 w-8 text-blue-400 mb-2" />
-              <CardTitle>Secure</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300">All games and stakes are secured by Solana blockchain smart contracts.</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card/80 backdrop-blur-md border border-amber-500/20 hover:border-amber-500/50 transition-all duration-300">
-            <CardHeader className="pb-2">
-              <Rocket className="h-8 w-8 text-amber-400 mb-2" />
-              <CardTitle>Fast</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-300">Lightning-fast moves and transactions thanks to Solana's high performance.</p>
-            </CardContent>
-          </Card>
         </div>
-      </div>
-
-      {/* Available Games Section */}
-      <div className="my-16">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Available Chess Games</h2>
-          <Button onClick={handleOpenNewGameModal}>Create New Game</Button>
-        </div>
-
-        {isLoading ? (
-          <p>Loading available games...</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {availableGames.length > 0 ? (
-              availableGames.map((game) => (
-                <Card key={game.id} className="bg-card text-card-foreground shadow-md hover:shadow-lg transition-shadow duration-200">
-                  <CardHeader>
-                    <CardTitle>Game ID: {game.id.substring(0, 8)}...</CardTitle>
-                    <CardDescription>
-                      Stake: {game.stake} SOL - Time Control: {game.time_control}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p>Host: {game.host_id.substring(0, 8)}...</p>
-                    <Button onClick={() => handleJoinGame(game)} className="w-full mt-4">
-                      Join Game
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <p>No available games. Create one to get started!</p>
-            )}
-          </div>
-        )}
-      </div>
+        <div className="mt-8">
+              <TournamentPlaceholder />
+            </div>
+      </main>
       
       <NewGameModal 
-        isOpen={isNewGameModalOpen} 
+        isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
-        onSubmit={handleCreateGame}
+        onCreateGame={handleCreateGame}
       />
       
-      <JoinGameModal
-        isOpen={isJoinGameModalOpen && !!selectedGame}
+      <JoinGameModal 
+        isOpen={isJoinGameModalOpen}
         onClose={() => setIsJoinGameModalOpen(false)}
-        game={selectedGame}
-        onConfirm={handleConfirmJoin}
-      />
-      
-      <StakeConfirmationModal
-        isOpen={isStakeModalOpen && !!selectedGame}
-        onClose={() => setIsStakeModalOpen(false)}
-        stake={selectedGame?.stake || 0}
-        onConfirm={handleConfirmStake}
-      />
-      
-      <NewGameSuccessModal
-        isOpen={showNewGameSuccess}
-        onClose={() => setShowNewGameSuccess(false)}
-        gameId={createdGameId}
-        stake={createdGameStake}
+        onJoinGame={handleJoinGameSubmit}
       />
     </div>
   );
 };
 
-export default IndexPage;
+export default Index;

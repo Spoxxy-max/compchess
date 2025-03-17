@@ -57,42 +57,6 @@ export type Database = {
         }
         Relationships: []
       }
-      wallet_profiles: {
-        Row: {
-          connected_at: string
-          games_lost: number | null
-          games_played: number | null
-          games_won: number | null
-          id: number
-          last_active: string | null
-          total_sol_staked: number | null
-          total_sol_won: number | null
-          wallet_address: string
-        }
-        Insert: {
-          connected_at?: string
-          games_lost?: number | null
-          games_played?: number | null
-          games_won?: number | null
-          id?: number
-          last_active?: string | null
-          total_sol_staked?: number | null
-          total_sol_won?: number | null
-          wallet_address: string
-        }
-        Update: {
-          connected_at?: string
-          games_lost?: number | null
-          games_played?: number | null
-          games_won?: number | null
-          id?: number
-          last_active?: string | null
-          total_sol_staked?: number | null
-          total_sol_won?: number | null
-          wallet_address?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never

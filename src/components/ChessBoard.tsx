@@ -1,6 +1,5 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
 import { createInitialBoard, getValidMoves, isInCheck, isCheckmate } from '../utils/chessUtils';
 import ChessPieceComponent from './ChessPiece';
@@ -28,7 +27,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const boardRef = useRef<HTMLDivElement>(null);
   const [lastMove, setLastMove] = useState<{from: ChessSquare, to: ChessSquare} | null>(null);
   const [draggedPiece, setDraggedPiece] = useState<{square: ChessSquare, x: number, y: number} | null>(null);
-  const navigate = useNavigate();
 
   // Audio effects
   const moveAudio = useRef<HTMLAudioElement | null>(null);
@@ -345,31 +343,18 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     );
   };
 
-  const handleBackToHome = () => {
-    navigate('/');
-  };
-
   return (
     <div className="flex flex-col items-center">
       <div className="relative pb-8 pl-8">
         {renderBoardWithLabels()}
       </div>
       
-      <div className="flex gap-4 mt-4">
-        <button
-          onClick={toggleBoardOrientation}
-          className="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm transition-colors duration-200 active:scale-95"
-        >
-          Flip Board
-        </button>
-        
-        <button
-          onClick={handleBackToHome}
-          className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md text-sm transition-colors duration-200 active:scale-95"
-        >
-          Back to Home
-        </button>
-      </div>
+      <button
+        onClick={toggleBoardOrientation}
+        className="mt-4 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm transition-colors duration-200"
+      >
+        Flip Board
+      </button>
     </div>
   );
 };
