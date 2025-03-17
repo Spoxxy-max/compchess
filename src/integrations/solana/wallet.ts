@@ -1,8 +1,9 @@
+
 import { 
   PhantomWalletAdapter,
   SolflareWalletAdapter,
-  TrustWalletAdapter,
-  BackpackWalletAdapter
+  TorusWalletAdapter,
+  LedgerWalletAdapter
 } from '@solana/wallet-adapter-wallets';
 import {
   Connection,
@@ -46,10 +47,10 @@ export const createWallet = (walletType?: WalletType): WalletAdapter => {
       adapter = new SolflareWalletAdapter();
       break;
     case 'trustwallet':
-      adapter = new TrustWalletAdapter();
+      adapter = new TorusWalletAdapter();
       break;
     case 'backpack':
-      adapter = new BackpackWalletAdapter();
+      adapter = new LedgerWalletAdapter();
       break;
     case 'coinbase':
       adapter = new PhantomWalletAdapter();
