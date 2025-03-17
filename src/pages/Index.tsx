@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +12,7 @@ import JoinGameModal from '@/components/JoinGameModal';
 import StakeConfirmationModal from '@/components/StakeConfirmationModal';
 import { GameData } from '@/utils/supabaseClient';
 import NewGameSuccessModal from '@/components/NewGameSuccessModal';
+import IDLLoader from '@/components/IDLLoader';
 
 const IndexPage = () => {
   const { wallet } = useWallet();
@@ -28,6 +27,7 @@ const IndexPage = () => {
   const [showNewGameSuccess, setShowNewGameSuccess] = useState(false);
   const [createdGameId, setCreatedGameId] = useState('');
   const [createdGameStake, setCreatedGameStake] = useState(0);
+  const [showIDLLoader, setShowIDLLoader] = useState(false);
 
   useEffect(() => {
     fetchAvailableGames();
@@ -154,12 +154,27 @@ const IndexPage = () => {
     }
   };
 
+  const toggleIDLLoader = () => {
+    setShowIDLLoader(!showIDLLoader);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Available Chess Games</h1>
-        <Button onClick={handleOpenNewGameModal}>Create New Game</Button>
+        <div className="flex space-x-2">
+          <Button onClick={toggleIDLLoader} variant="outline">
+            {showIDLLoader ? "Hide IDL Loader" : "Load Smart Contract IDL"}
+          </Button>
+          <Button onClick={handleOpenNewGameModal}>Create New Game</Button>
+        </div>
       </div>
+
+      {showIDLLoader && (
+        <div className="mb-8">
+          <IDLLoader />
+        </div>
+      )}
 
       {isLoading ? (
         <p>Loading available games...</p>
@@ -198,7 +213,7 @@ const IndexPage = () => {
         isOpen={isJoinGameModalOpen && !!selectedGame}
         onClose={() => setIsJoinGameModalOpen(false)}
         game={selectedGame}
-        onConfirm={handleJoinGame}
+        onConfirm={handleConfirmJoin}
       />
       
       <StakeConfirmationModal
