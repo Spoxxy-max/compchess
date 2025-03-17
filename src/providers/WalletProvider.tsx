@@ -42,6 +42,21 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setConnecting(true);
       
       const newWallet = createWallet(type);
+
+      // Check if the wallet is installed
+      if (type === 'phantom' && !window.phantom?.solana) {
+        throw new Error('Phantom wallet is not installed. Please install it from https://phantom.app/');
+      } 
+      if (type === 'solflare' && !window.solflare) {
+        throw new Error('Solflare wallet is not installed. Please install it from https://solflare.com/');
+      } 
+      if (type === 'trustwallet' && !(window.trustwallet || window.solana?.isTrust)) {
+        throw new Error('Trust Wallet is not installed. Please install it from https://trustwallet.com/');
+      } 
+      if (type === 'backpack' && !window.backpack?.solana) {
+        throw new Error('Backpack wallet is not installed. Please install it from https://www.backpack.app/');
+      }
+
       await newWallet.connect();
       
       setWallet(newWallet);

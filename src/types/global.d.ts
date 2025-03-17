@@ -22,6 +22,8 @@ declare global {
       signMessage?: (message: Uint8Array) => Promise<{ signature: Uint8Array }>;
     };
     trustwallet?: {
+      isTrust: any;
+      request(arg0: { method: string; }): unknown;
       connect: () => Promise<void>;
       disconnect: () => Promise<void>;
       publicKey?: { toString: () => string };

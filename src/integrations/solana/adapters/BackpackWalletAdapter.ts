@@ -7,7 +7,8 @@ export class BackpackWalletAdapter extends BaseWalletAdapter {
   async connect(): Promise<void> {
     try {
       // Check if Backpack wallet is installed
-      const isBackpackInstalled = window.backpack?.solana;
+      // const isBackpackInstalled = window.backpack?.solana;
+      const isBackpackInstalled = typeof window !== 'undefined' && window.phantom?.solana;
       
       if (!isBackpackInstalled) {
         // Mock in development
