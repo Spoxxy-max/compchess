@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../integrations/solana/wallet';
 import WalletSelector from './WalletSelector';
-import { Settings, WalletIcon } from 'lucide-react';
+import { Settings, WalletIcon, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   onNewGame?: () => void;
@@ -24,6 +24,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
   // Handle wallet disconnect button click
   const handleDisconnectWallet = () => {
     disconnectWallet();
+    navigate('/');
   };
 
   // Navigate to the smart contract config page
@@ -49,24 +50,33 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
       </div>
       
       <div className="flex items-center gap-2">
-        {/* <Button 
+        <Button 
           onClick={handleSmartContractConfig}
           variant="outline"
           className="hidden sm:flex items-center gap-2 hover:bg-primary/10 active:scale-95 transition-all"
         >
           <Settings className="w-4 h-4" />
           Smart Contract
-        </Button> */}
+        </Button>
         
         {wallet?.connected ? (
-          <Button 
-            onClick={handleDisconnectWallet}
-            variant="outline"
-            className="gap-2 hover:bg-destructive/10 active:scale-95 transition-all"
-          >
-            <WalletIcon className="w-4 h-4" />
-            {wallet.publicKey?.substring(0, 4)}...{wallet.publicKey?.substring(wallet.publicKey.length - 4)}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              className="gap-2 hover:bg-primary/10 active:scale-95 transition-all"
+            >
+              <WalletIcon className="w-4 h-4" />
+              {wallet.publicKey?.substring(0, 4)}...{wallet.publicKey?.substring(wallet.publicKey.length - 4)}
+            </Button>
+            <Button 
+              onClick={handleDisconnectWallet}
+              variant="outline"
+              className="gap-2 hover:bg-destructive/10 active:scale-95 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              Disconnect
+            </Button>
+          </div>
         ) : (
           <Button 
             onClick={handleConnectWallet}

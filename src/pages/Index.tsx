@@ -77,8 +77,13 @@ const Index = () => {
   };
 
   const handleCreateGame = (timeControl: TimeControl, stake: number) => {
-    // Navigate to the game page with the selected settings
-    navigate('/game', { state: { timeControl, stake, playerColor: 'white' } });
+    // Close modal but don't navigate automatically - modified
+    setIsNewGameModalOpen(false);
+    
+    toast({
+      title: "Game Created",
+      description: "Your game has been created successfully. Wait for an opponent to join.",
+    });
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
@@ -472,6 +471,11 @@ const GamePage: React.FC<GamePageProps> = ({
     navigate('/');
   };
 
+  // Navigate to home - fixed implementation
+  const handleBackToHome = () => {
+    navigate('/', { replace: true });
+  };
+
   // Render game content based on the current state
   const renderGameContent = () => {
     if (gameState === 'waiting') {
@@ -554,7 +558,7 @@ const GamePage: React.FC<GamePageProps> = ({
           variant="ghost" 
           size="sm" 
           className="mb-4 flex items-center gap-2 self-start"
-          onClick={() => navigate('/')}
+          onClick={handleBackToHome}
         >
           <ArrowLeft size={16} />
           Back to Home
