@@ -21,13 +21,18 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     const wallets = getAvailableWallets();
     setAvailableWallets(wallets);
-    
-    const lastWalletType = localStorage.getItem('lastWalletType') as WalletType | undefined;
-    if (lastWalletType) {
-      connectWallet(lastWalletType).catch(err => {
-        console.log('Failed to auto-connect wallet:', err);
-      });
-    }
+
+    // Disconnect wallet on page refresh
+    const disconnectOnReload = async () => {
+      await disconnectWallet();
+      console.log("Wallet disconnected on page refresh");
+    };
+
+    window.addEventListener("beforeunload", disconnectOnReload);
+
+    return () => {
+      window.removeEventListener("beforeunload", disconnectOnReload);
+    };
   }, []);
 
   const connectWallet = async (type?: WalletType): Promise<WalletAdapter | void> => {
@@ -37,7 +42,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setConnecting(true);
       
       const newWallet = createWallet(type);
-      
       await newWallet.connect();
       
       setWallet(newWallet);

@@ -16,7 +16,7 @@ export abstract class BaseWalletAdapter implements WalletAdapter {
     
     try {
       // Use Solana JSON RPC API to fetch the real balance
-      const response = await fetch('https://api.mainnet-beta.solana.com', {
+      const response = await fetch('https://devnet.solana.com', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

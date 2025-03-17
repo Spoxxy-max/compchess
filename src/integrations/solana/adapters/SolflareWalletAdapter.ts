@@ -7,7 +7,8 @@ export class SolflareWalletAdapter extends BaseWalletAdapter {
   async connect(): Promise<void> {
     try {
       // Check if Solflare wallet is installed
-      const isSolflareInstalled = window.solflare;
+      // const isSolflareInstalled = window.solflare;
+      const isSolflareInstalled = typeof window !== 'undefined' && window.phantom?.solana;
       
       if (!isSolflareInstalled) {
         throw new Error('Solflare wallet is not installed');

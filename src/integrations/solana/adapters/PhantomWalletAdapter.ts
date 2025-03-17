@@ -7,7 +7,10 @@ export class PhantomWalletAdapter extends BaseWalletAdapter {
   async connect(): Promise<void> {
     try {
       // Check if Phantom wallet is installed
-      const isPhantomInstalled = window.phantom?.solana;
+      // 
+      // const isPhantomInstalled = window.phantom?.solana;
+      //  Modified to the below
+      const isPhantomInstalled = typeof window !== 'undefined' && window.phantom?.solana;
       
       if (!isPhantomInstalled) {
         // Mock in development for testing
