@@ -1,4 +1,3 @@
-
 import { 
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -18,7 +17,8 @@ export type WalletType =
   | 'phantom' 
   | 'solflare' 
   | 'trustwallet' 
-  | 'backpack';
+  | 'backpack'
+  | 'coinbase';
 
 // Solana cluster configuration
 export const SOLANA_CLUSTER = 'mainnet-beta';
@@ -50,6 +50,9 @@ export const createWallet = (walletType?: WalletType): WalletAdapter => {
       break;
     case 'backpack':
       adapter = new BackpackWalletAdapter();
+      break;
+    case 'coinbase':
+      adapter = new PhantomWalletAdapter();
       break;
     default:
       adapter = new PhantomWalletAdapter(); // Default to Phantom

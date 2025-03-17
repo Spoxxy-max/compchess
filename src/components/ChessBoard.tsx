@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useRef, useNavigate } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
 import { createInitialBoard, getValidMoves, isInCheck, isCheckmate } from '../utils/chessUtils';
 import ChessPieceComponent from './ChessPiece';

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useWallet, WalletType } from '../integrations/solana/wallet';
 import { AlertCircle, WalletIcon, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,7 +20,6 @@ const WalletSelector: React.FC<WalletSelectorProps> = ({ isOpen, onClose }) => {
     'solflare': { bg: 'bg-orange-500/10', border: 'border-orange-500/20', iconColor: 'text-orange-500' },
     'trustwallet': { bg: 'bg-blue-500/10', border: 'border-blue-500/20', iconColor: 'text-blue-500' },
     'backpack': { bg: 'bg-green-500/10', border: 'border-green-500/20', iconColor: 'text-green-500' },
-    'glow': { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', iconColor: 'text-yellow-500' },
     'coinbase': { bg: 'bg-blue-500/10', border: 'border-blue-500/20', iconColor: 'text-blue-500' },
   };
 

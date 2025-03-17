@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
 import { createInitialBoard } from '../utils/chessUtils';
@@ -8,7 +9,6 @@ import { useWallet } from '@/integrations/solana/wallet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 import { Home } from 'lucide-react';
 
 const GamePage = () => {
@@ -60,9 +60,9 @@ const GamePage = () => {
             setIsSpectator(true);
           }
           
-          // Set board state
+          // Set board state - Fix type conversion issue
           if (data.board_state) {
-            setBoard(data.board_state as ChessBoardType);
+            setBoard(data.board_state as unknown as ChessBoardType);
           }
         }
       } catch (error) {
@@ -89,7 +89,7 @@ const GamePage = () => {
         filter: `id=eq.${gameId}`
       }, (payload) => {
         setGame(payload.new);
-        setBoard(payload.new.board_state as ChessBoardType);
+        setBoard(payload.new.board_state as unknown as ChessBoardType);
       })
       .subscribe();
       
@@ -119,7 +119,7 @@ const GamePage = () => {
       const { error } = await supabase
         .from('chess_games')
         .update({
-          board_state: board,
+          board_state: board as unknown as Record<string, any>,
           current_turn: board.currentTurn,
           move_history: board.moveHistory
         })

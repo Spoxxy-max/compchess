@@ -37,7 +37,8 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/game" element={<GamePage timeControl={timeControlOptions[0]} stake={0} />} />
+              <Route path="/game/:gameId" element={<GamePage />} />
+              <Route path="/game" element={<GamePage />} />
               <Route path="/smart-contract" element={<SmartContractConfig />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
