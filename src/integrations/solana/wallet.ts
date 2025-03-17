@@ -10,3 +10,6 @@ export * from './adapters/PhantomWalletAdapter';
 export * from './adapters/SolflareWalletAdapter';
 export * from './adapters/TrustWalletAdapter';
 export * from './adapters/BackpackWalletAdapter';
+
+// Re-export smart contract functionality for easier access
+export * from './chessSmartContract';

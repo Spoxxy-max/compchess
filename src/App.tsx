@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import SmartContractConfig from './pages/SmartContractConfig';
 import { timeControlOptions } from "./utils/chessUtils";
 
+// Create a QueryClient for React Query
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -38,6 +39,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/game" element={<GamePage timeControl={timeControlOptions[0]} stake={0} />} />
+              <Route path="/game/:id" element={<GamePage timeControl={timeControlOptions[0]} stake={0} />} />
               <Route path="/smart-contract" element={<SmartContractConfig />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
