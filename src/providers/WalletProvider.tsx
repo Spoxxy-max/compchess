@@ -8,7 +8,6 @@ import {
   createWallet,
   getAvailableWallets
 } from '../integrations/solana/wallet';
-import { executeSmartContractMethod } from '../integrations/solana/smartContract';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 
@@ -51,7 +50,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!existingWallet) {
         const { error: insertError } = await supabase
           .from('wallet_profiles')
-          .insert([{ wallet_address: walletAddress, connected_at: new Date().toISOString() }]);
+          .insert({ wallet_address: walletAddress, connected_at: new Date().toISOString() });
 
         if (insertError) {
           console.error('Error storing wallet address:', insertError);
@@ -137,43 +136,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const smartContractExecute = async (method: string, params: any) => {
-    if (!wallet?.connected) {
-      toast({
-        title: "Wallet Not Connected",
-        description: "Please connect your wallet to interact with the smart contract",
-        variant: "destructive",
-      });
-      return { success: false, error: "Wallet not connected" };
-    }
-    
-    try {
-      const result = await executeSmartContractMethod(method as any, params);
-      
-      if (result.success) {
-        toast({
-          title: "Transaction Successful",
-          description: `Successfully executed ${method}`,
-        });
-      } else {
-        toast({
-          title: "Transaction Failed",
-          description: result.error?.message || `Failed to execute ${method}`,
-          variant: "destructive",
-        });
-      }
-      
-      return result;
-    } catch (error: any) {
-      toast({
-        title: "Transaction Error",
-        description: error.message || `Error executing ${method}`,
-        variant: "destructive",
-      });
-      return { success: false, error };
-    }
-  };
-
   return (
     <WalletContext.Provider 
       value={{ 
@@ -182,7 +144,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         availableWallets,
         connectWallet, 
         disconnectWallet,
-        smartContractExecute
+        signTransaction: async (transaction) => {
+          if (!wallet) throw new Error('Wallet not connected');
+          return wallet.signTransaction(transaction);
+        },
+        signAllTransactions: async (transactions) => {
+          if (!wallet) throw new Error('Wallet not connected');
+          return wallet.signAllTransactions(transactions);
+        }
       }}
     >
       {children}

@@ -1,11 +1,9 @@
+
 import { 
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TrustWalletAdapter,
-  BackpackWalletAdapter,
-  GlowWalletAdapter,
-  CoinbaseWalletAdapter,
-  BaseWalletAdapter
+  BackpackWalletAdapter
 } from '@solana/wallet-adapter-wallets';
 import {
   Connection,
@@ -20,9 +18,7 @@ export type WalletType =
   | 'phantom' 
   | 'solflare' 
   | 'trustwallet' 
-  | 'backpack'
-  | 'glow'
-  | 'coinbase';
+  | 'backpack';
 
 // Solana cluster configuration
 export const SOLANA_CLUSTER = 'mainnet-beta';
@@ -40,7 +36,7 @@ export interface WalletAdapter {
 
 // Function to create a wallet adapter based on type
 export const createWallet = (walletType?: WalletType): WalletAdapter => {
-  let adapter: BaseWalletAdapter | undefined;
+  let adapter;
 
   switch (walletType) {
     case 'phantom':
@@ -55,12 +51,6 @@ export const createWallet = (walletType?: WalletType): WalletAdapter => {
     case 'backpack':
       adapter = new BackpackWalletAdapter();
       break;
-    case 'glow':
-      adapter = new GlowWalletAdapter();
-      break;
-    case 'coinbase':
-      adapter = new CoinbaseWalletAdapter();
-      break;
     default:
       adapter = new PhantomWalletAdapter(); // Default to Phantom
       break;
@@ -72,33 +62,33 @@ export const createWallet = (walletType?: WalletType): WalletAdapter => {
     connected: adapter.connected,
     connect: async () => {
       try {
-        await adapter!.connect();
+        await adapter.connect();
       } catch (error: any) {
-        console.error(`Failed to connect to ${adapter!.name}: ${error.message}`);
+        console.error(`Failed to connect to ${adapter.name}: ${error.message}`);
         throw error;
       }
     },
     disconnect: async () => {
       try {
-        await adapter!.disconnect();
+        await adapter.disconnect();
       } catch (error: any) {
-        console.error(`Failed to disconnect from ${adapter!.name}: ${error.message}`);
+        console.error(`Failed to disconnect from ${adapter.name}: ${error.message}`);
         throw error;
       }
     },
     signTransaction: async (transaction: Transaction) => {
       try {
-        return await adapter!.signTransaction(transaction);
+        return await adapter.signTransaction(transaction);
       } catch (error: any) {
-        console.error(`Failed to sign transaction with ${adapter!.name}: ${error.message}`);
+        console.error(`Failed to sign transaction with ${adapter.name}: ${error.message}`);
         throw error;
       }
     },
     signAllTransactions: async (transactions: Transaction[]) => {
       try {
-        return await adapter!.signAllTransactions(transactions);
+        return await adapter.signAllTransactions(transactions);
       } catch (error: any) {
-        console.error(`Failed to sign all transactions with ${adapter!.name}: ${error.message}`);
+        console.error(`Failed to sign all transactions with ${adapter.name}: ${error.message}`);
         throw error;
       }
     },
@@ -118,15 +108,9 @@ export const getAvailableWallets = (): { type: WalletType; name: string }[] => {
     if (window.trustwallet) {
       wallets.push({ type: 'trustwallet', name: 'Trust Wallet' });
     }
-     if (window.backpack) {
-       wallets.push({ type: 'backpack', name: 'Backpack' });
-     }
-     if (window.glow) {
-       wallets.push({ type: 'glow', name: 'Glow' });
-     }
-     if (window.coinbase) {
-       wallets.push({ type: 'coinbase', name: 'Coinbase' });
-     }
+    if (window.backpack) {
+      wallets.push({ type: 'backpack', name: 'Backpack' });
+    }
   }
   return wallets;
 };
