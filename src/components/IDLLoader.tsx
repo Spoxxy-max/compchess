@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -267,10 +268,31 @@ const IDLLoader: React.FC = () => {
 
   useEffect(() => {
     if (!isLoaded) {
-      handleIDLLoad();
+      handleIDLLoadSilently();
     }
   }, []);
 
+  // Silent version that doesn't show a toast
+  const handleIDLLoadSilently = () => {
+    try {
+      setIsLoading(true);
+      
+      const success = initializeGameIDL(CHESS_IDL);
+      
+      if (success) {
+        setIsLoaded(true);
+        console.log("IDL loaded silently");
+      } else {
+        console.error("Failed to load IDL silently");
+      }
+    } catch (error) {
+      console.error("Error parsing IDL:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // User-initiated IDL load that shows a toast
   const handleIDLLoad = () => {
     try {
       setIsLoading(true);
