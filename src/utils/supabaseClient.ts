@@ -46,6 +46,8 @@ const jsonToBoard = (json: Json): ChessBoard => {
 export const createGame = async (params: CreateGameParams): Promise<GameData | null> => {
   const { hostId, timeControl, timeIncrement, stake, initialBoard } = params;
   
+  console.log("Creating new game with params:", { hostId, timeControl, timeIncrement, stake });
+  
   const startTime = initialBoard.whiteTime; // Both white and black have the same starting time
   
   const { data, error } = await supabase
@@ -69,6 +71,8 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
     return null;
   }
   
+  console.log("Game created successfully:", data);
+  
   return {
     ...data,
     board_state: jsonToBoard(data.board_state),
@@ -81,6 +85,8 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
 
 // Join an existing game
 export const joinGame = async (gameId: string, opponentId: string): Promise<boolean> => {
+  console.log(`Attempting to join game ${gameId} as ${opponentId}`);
+  
   // First, check if the game exists and is available to join
   const { data: game, error: gameError } = await supabase
     .from('chess_games')
@@ -115,11 +121,14 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     return false;
   }
   
+  console.log(`Successfully joined game ${gameId}`);
   return true;
 };
 
 // Get available games (excluding games created by the current user)
 export const getAvailableGames = async (currentUserId?: string): Promise<GameData[]> => {
+  console.log("Fetching available games, excluding user:", currentUserId);
+  
   let query = supabase
     .from('chess_games')
     .select('*')
@@ -137,6 +146,8 @@ export const getAvailableGames = async (currentUserId?: string): Promise<GameDat
     console.error('Error fetching available games:', error);
     return [];
   }
+  
+  console.log(`Found ${data?.length || 0} available games`);
   
   return (data || []).map(game => ({
     ...game,

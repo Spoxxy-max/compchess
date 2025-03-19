@@ -32,8 +32,9 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   const fetchAvailableGames = async () => {
     setLoading(true);
     try {
-      // Exclude user's own games when fetching
+      // Exclude user's own games when fetching by passing the wallet public key
       const games = await getAvailableGames(wallet?.publicKey);
+      console.log("Available games fetched:", games);
       setAvailableGames(games);
     } catch (error) {
       console.error("Error fetching games:", error);

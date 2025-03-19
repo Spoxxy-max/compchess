@@ -57,6 +57,30 @@ export type Database = {
         }
         Relationships: []
       }
+      games: {
+        Row: {
+          created_at: string | null
+          id: string
+          player1: string
+          player2: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          player1: string
+          player2?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          player1?: string
+          player2?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       wallet_profiles: {
         Row: {
           connected_at: string

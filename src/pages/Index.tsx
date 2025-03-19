@@ -11,24 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWallet } from '../integrations/solana/wallet';
 
-// Mock data for join game
-const mockAvailableGames = [
-  {
-    id: 'game1',
-    host: 'Player1',
-    timeControl: timeControlOptions[0],
-    stake: 0.1,
-    createdAt: new Date(),
-  },
-  {
-    id: 'game2',
-    host: 'Player2',
-    timeControl: timeControlOptions[1],
-    stake: 0.5,
-    createdAt: new Date(),
-  },
-];
-
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
@@ -77,15 +59,18 @@ const Index = () => {
   };
 
   const handleCreateGame = (timeControl: TimeControl, stake: number) => {
-    // Navigate to the game page with the selected settings
-    navigate('/game', { state: { timeControl, stake, playerColor: 'white' } });
+    navigate('/game/new', { 
+      state: { 
+        timeControl, 
+        stake, 
+        playerColor: 'white' 
+      } 
+    });
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
-    // Navigate to the game page with the selected settings
-    navigate('/game', { 
+    navigate(`/game/${gameId}`, { 
       state: { 
-        gameId,
         timeControl,
         stake,
         playerColor: 'black' 
@@ -196,7 +181,7 @@ const Index = () => {
                 </div>
                 <div className="mt-6">
                   <Button 
-                    onClick={() => navigate('/game', { 
+                    onClick={() => navigate('/game/new', { 
                       state: { 
                         timeControl: timeControlOptions[0],
                         stake: 0,
