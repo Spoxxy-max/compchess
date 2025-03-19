@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -94,6 +93,20 @@ const DEFAULT_IDL = {
       ]
     }
   ],
+  "types": [
+    {
+      "name": "GameStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Waiting" },
+          { "name": "Active" },
+          { "name": "Completed" },
+          { "name": "Aborted" }
+        ]
+      }
+    }
+  ],
   "errors": [
     { "code": 6000, "name": "InvalidGameStatus" },
     { "code": 6001, "name": "NotPlayerTurn" },
@@ -120,8 +133,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Initialize IDL by default to prevent errors
     if (!isIDLInitialized()) {
-      initializeGameIDL(DEFAULT_IDL);
-      console.log("Default Chess Game IDL initialized during provider load");
+      const success = initializeGameIDL(DEFAULT_IDL);
+      console.log("Default Chess Game IDL initialized during provider load:", success);
+      
+      if (success) {
+        toast({
+          title: "Chess Game IDL Loaded",
+          description: "Default Chess Game IDL has been loaded automatically",
+        });
+      }
     }
 
     // Disconnect wallet on page refresh
@@ -142,6 +162,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     try {
       setConnecting(true);
+      console.log("Attempting to connect wallet of type:", type);
       
       const newWallet = createWallet(type);
 
@@ -185,12 +206,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             newWallet.publicKey = `dev_${Math.random().toString(36).substring(2, 10)}`;
           }
           
+          // Set a mock balance for better UX in dev mode
+          newWallet.balance = 100; // 100 SOL for testing
+          
           setWallet(newWallet);
           if (type) localStorage.setItem('lastWalletType', type);
           
           toast({
             title: `${newWallet.walletName} Connected (Dev Mode)`,
-            description: "Connected to your wallet in development mode",
+            description: "Connected with 100 SOL for testing purposes",
           });
           
           return newWallet;
@@ -199,6 +223,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
     } catch (error: any) {
+      console.error("Wallet connection error:", error);
       toast({
         title: "Connection Failed",
         description: error.message || "Failed to connect to wallet",
@@ -214,6 +239,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!wallet) return;
     
     try {
+      console.log("Disconnecting wallet...");
       await wallet.disconnect();
       setWallet(null);
       localStorage.removeItem('lastWalletType');
@@ -226,12 +252,16 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (location.pathname !== '/') {
         navigate('/');
       }
+      
+      return true;
     } catch (error: any) {
+      console.error("Disconnect error:", error);
       toast({
         title: "Disconnect Failed",
         description: error.message || "Failed to disconnect wallet",
         variant: "destructive",
       });
+      return false;
     }
   };
 

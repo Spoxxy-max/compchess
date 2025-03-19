@@ -16,6 +16,11 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Navigate to home
+  const handleNavHome = () => {
+    navigate('/');
+  };
+
   // Open wallet selection modal
   const handleConnectWallet = () => {
     setIsWalletSelectorOpen(true);
@@ -23,8 +28,14 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
 
   // Disconnect wallet and navigate home
   const handleDisconnectWallet = async () => {
-    await disconnectWallet();
-    navigate('/'); // Redirect to homepage after disconnect
+    console.log("Disconnecting wallet...");
+    try {
+      await disconnectWallet();
+      console.log("Wallet disconnected, navigating to home");
+      navigate('/'); // Redirect to homepage after disconnect
+    } catch (error) {
+      console.error("Error disconnecting wallet:", error);
+    }
   };
 
   return (
@@ -32,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
       <div className="flex items-center">
         <h1 
           className="text-xl font-bold mr-2 cursor-pointer hover:text-primary transition-colors" 
-          onClick={() => navigate('/')}
+          onClick={handleNavHome}
         >
           CompChess
         </h1>

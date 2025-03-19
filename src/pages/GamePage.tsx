@@ -442,6 +442,10 @@ const GamePage: React.FC<GamePageProps> = ({
     navigate('/');
   };
 
+  const handleBackToHome = () => {
+    navigate('/');
+  };
+
   const renderGameContent = () => {
     if (gameState === 'waiting') {
       return (
@@ -520,7 +524,7 @@ const GamePage: React.FC<GamePageProps> = ({
         <Button 
           size="sm" 
           className="mb-4 flex items-center gap-2 self-start"
-          onClick={() => navigate('/')}
+          onClick={handleBackToHome}
         >
           <ArrowLeft size={16} />
           Back to Home

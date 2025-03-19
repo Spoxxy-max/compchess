@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useWallet } from '../integrations/solana/wallet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 import { timeControlOptions } from '../utils/chessUtils';
 import { TimeControl } from '../utils/chessTypes';
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,26 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
     setSelectedTimeControl(timeControl);
   };
 
+  const handleStakeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    
+    // If value is not a number or is negative, default to 0
+    if (isNaN(value) || value < 0) {
+      setStakeAmount(0);
+    } 
+    // If value exceeds max stake, cap it
+    else if (value > MAX_STAKE) {
+      setStakeAmount(MAX_STAKE);
+      toast({
+        title: "Maximum Stake Limit",
+        description: `Stake amount cannot exceed ${MAX_STAKE} SOL`,
+      });
+    } 
+    else {
+      setStakeAmount(value);
+    }
+  };
+
   // Format time for display
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -80,20 +100,22 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
           <div className="mt-6">
             <h3 className="text-md font-medium mb-3">Stake Amount (SOL)</h3>
             <div className="space-y-3">
-              <Slider
-                value={[stakeAmount]}
+              <Input
+                type="number"
+                value={stakeAmount}
+                onChange={handleStakeInput}
                 min={0}
                 max={MAX_STAKE}
                 step={0.1}
-                onValueChange={(value) => setStakeAmount(value[0])}
-                className="mb-6"
+                placeholder="Enter stake amount"
+                className="w-full"
               />
+              
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">0 SOL</span>
+                <span className="text-sm text-muted-foreground">Enter amount (0-{MAX_STAKE} SOL)</span>
                 <div className="px-3 py-1 bg-card rounded border border-border">
                   <span className="font-medium">{stakeAmount.toFixed(1)} SOL</span>
                 </div>
-                <span className="text-sm text-muted-foreground">{MAX_STAKE} SOL</span>
               </div>
               
               {wallet && (
