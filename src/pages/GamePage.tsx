@@ -551,7 +551,7 @@ const GamePage: React.FC<GamePageProps> = ({
       
       <div className="container px-4 mx-auto py-4 sm:py-8 flex-1 flex flex-col">
         <Button 
-          variant="ghost" 
+          // variant="ghost" 
           size="sm" 
           className="mb-4 flex items-center gap-2 self-start"
           onClick={() => navigate('/')}

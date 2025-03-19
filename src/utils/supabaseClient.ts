@@ -276,3 +276,6 @@ export const subscribeToGame = (gameId: string, callback: (payload: any) => void
     )
     .subscribe();
 };
+
+
+export { supabase };
