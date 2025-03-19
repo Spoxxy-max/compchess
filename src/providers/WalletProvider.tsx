@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -11,18 +12,133 @@ import { executeSmartContractMethod } from '../integrations/solana/smartContract
 import { useToast } from "@/hooks/use-toast";
 import { initializeGameIDL, isIDLInitialized } from '../integrations/solana/chessSmartContract';
 
-// Example IDL to initialize by default - this will help prevent "IDL not initialized" errors
-const DEFAULT_IDL = {
+// IDL from the user input - will be initialized automatically
+const CHESS_IDL = {
   "version": "0.1.0",
   "name": "chess_game",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "programState",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "createGame",
+      "accounts": [
+        {
+          "name": "game",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "host",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "stakeAmount",
+          "type": "u64"
+        },
+        {
+          "name": "timeControl",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "joinGame",
+      "accounts": [
+        {
+          "name": "game",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "opponent",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "makeMove",
+      "accounts": [
+        {
+          "name": "game",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "player",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "to",
+          "type": "string"
+        }
+      ]
+    }
+  ],
   "accounts": [
     {
       "name": "ChessProgramState",
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "admin", "type": "publicKey" },
-          { "name": "gameCount", "type": "u64" }
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "gameCount",
+            "type": "u64"
+          }
         ]
       }
     },
@@ -31,66 +147,64 @@ const DEFAULT_IDL = {
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "host", "type": "publicKey" },
-          { "name": "opponent", "type": { "option": "publicKey" } },
-          { "name": "stake", "type": "u64" },
-          { "name": "timeControl", "type": "u64" },
-          { "name": "status", "type": "u8" },
-          { "name": "createdAt", "type": "i64" },
-          { "name": "lastWhiteMove", "type": "i64" },
-          { "name": "lastBlackMove", "type": "i64" },
-          { "name": "winner", "type": { "option": "publicKey" } },
-          { "name": "endReason", "type": { "option": "string" } },
-          { "name": "moves", "type": { "vec": "string" } },
-          { "name": "bump", "type": "u8" }
+          {
+            "name": "host",
+            "type": "publicKey"
+          },
+          {
+            "name": "opponent",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "stake",
+            "type": "u64"
+          },
+          {
+            "name": "timeControl",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "lastWhiteMove",
+            "type": "i64"
+          },
+          {
+            "name": "lastBlackMove",
+            "type": "i64"
+          },
+          {
+            "name": "winner",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "endReason",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "moves",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
         ]
       }
-    }
-  ],
-  "instructions": [
-    {
-      "name": "initialize",
-      "accounts": [
-        { "name": "programState", "isMut": true, "isSigner": true },
-        { "name": "admin", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
-      ],
-      "args": [
-        { "name": "admin", "type": "publicKey" }
-      ]
-    },
-    {
-      "name": "createGame",
-      "accounts": [
-        { "name": "game", "isMut": true, "isSigner": false },
-        { "name": "host", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false },
-        { "name": "programState", "isMut": false, "isSigner": false }
-      ],
-      "args": [
-        { "name": "stakeAmount", "type": "u64" },
-        { "name": "timeControl", "type": "u64" }
-      ]
-    },
-    {
-      "name": "joinGame",
-      "accounts": [
-        { "name": "game", "isMut": true, "isSigner": false },
-        { "name": "opponent", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
-      ],
-      "args": []
-    },
-    {
-      "name": "makeMove",
-      "accounts": [
-        { "name": "game", "isMut": true, "isSigner": false },
-        { "name": "player", "isMut": false, "isSigner": true }
-      ],
-      "args": [
-        { "name": "from", "type": "string" },
-        { "name": "to", "type": "string" }
-      ]
     }
   ],
   "types": [
@@ -99,23 +213,55 @@ const DEFAULT_IDL = {
       "type": {
         "kind": "enum",
         "variants": [
-          { "name": "Waiting" },
-          { "name": "Active" },
-          { "name": "Completed" },
-          { "name": "Aborted" }
+          {
+            "name": "Waiting"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Aborted"
+          }
         ]
       }
     }
   ],
   "errors": [
-    { "code": 6000, "name": "InvalidGameStatus" },
-    { "code": 6001, "name": "NotPlayerTurn" },
-    { "code": 6002, "name": "TimeoutNotReached" },
-    { "code": 6003, "name": "NotWinner" },
-    { "code": 6004, "name": "InactivityTimeNotReached" },
-    { "code": 6005, "name": "InvalidMove" },
-    { "code": 6006, "name": "InsufficientFunds" },
-    { "code": 6007, "name": "InvalidReason" }
+    {
+      "code": 6000,
+      "name": "InvalidGameStatus"
+    },
+    {
+      "code": 6001,
+      "name": "NotPlayerTurn"
+    },
+    {
+      "code": 6002,
+      "name": "TimeoutNotReached"
+    },
+    {
+      "code": 6003,
+      "name": "NotWinner"
+    },
+    {
+      "code": 6004,
+      "name": "InactivityTimeNotReached"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidMove"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientFunds"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidReason"
+    }
   ]
 };
 
@@ -133,13 +279,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Initialize IDL by default to prevent errors
     if (!isIDLInitialized()) {
-      const success = initializeGameIDL(DEFAULT_IDL);
-      console.log("Default Chess Game IDL initialized during provider load:", success);
+      const success = initializeGameIDL(CHESS_IDL);
+      console.log("Chess Game IDL initialized during provider load:", success);
       
       if (success) {
         toast({
           title: "Chess Game IDL Loaded",
-          description: "Default Chess Game IDL has been loaded automatically",
+          description: "Chess Game IDL has been loaded automatically",
         });
       }
     }

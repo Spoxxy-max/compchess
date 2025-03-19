@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
@@ -83,15 +84,19 @@ const GamePage: React.FC<GamePageProps> = ({
       }
     }
     
-    if (stake > 0 && !isPracticeMode) {
+    // Always show stake modal for non-practice games with a stake
+    if (stake > 0 && !isPracticeMode && !stakeConfirmed) {
+      console.log("Showing stake modal for game with stake:", stake);
       setShowStakeModal(true);
     } else {
       setStakeConfirmed(true);
     }
-  }, [location]);
+  }, [location, isPracticeMode, stake, stakeConfirmed]);
 
   const handleStakeConfirm = async () => {
     try {
+      console.log("Confirming stake of", stake, "SOL");
+      
       if (!isIDLInitialized()) {
         toast({
           title: "IDL Not Initialized",
@@ -103,6 +108,8 @@ const GamePage: React.FC<GamePageProps> = ({
       }
       
       if (wallet && wallet.connected) {
+        console.log("Wallet balance:", wallet.balance, "SOL");
+        
         if (wallet.balance < stake) {
           toast({
             title: "Insufficient Balance",
@@ -150,6 +157,7 @@ const GamePage: React.FC<GamePageProps> = ({
         }
       }
     } catch (error: any) {
+      console.error("Stake confirmation error:", error);
       toast({
         title: "Stake Error",
         description: error.message || "An error occurred when staking",

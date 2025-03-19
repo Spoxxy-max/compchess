@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,20 +7,275 @@ import { useToast } from "@/hooks/use-toast";
 import { initializeGameIDL, isIDLInitialized } from '../integrations/solana/chessSmartContract';
 import { AlertCircle, CheckCircle, Download, Upload } from 'lucide-react';
 
+const CHESS_IDL = {
+  "version": "0.1.0",
+  "name": "chess_game",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "programState",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "createGame",
+      "accounts": [
+        {
+          "name": "game",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "host",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "programState",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "stakeAmount",
+          "type": "u64"
+        },
+        {
+          "name": "timeControl",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "joinGame",
+      "accounts": [
+        {
+          "name": "game",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "opponent",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "makeMove",
+      "accounts": [
+        {
+          "name": "game",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "player",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "from",
+          "type": "string"
+        },
+        {
+          "name": "to",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ChessProgramState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "publicKey"
+          },
+          {
+            "name": "gameCount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ChessGame",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "host",
+            "type": "publicKey"
+          },
+          {
+            "name": "opponent",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "stake",
+            "type": "u64"
+          },
+          {
+            "name": "timeControl",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
+            "name": "lastWhiteMove",
+            "type": "i64"
+          },
+          {
+            "name": "lastBlackMove",
+            "type": "i64"
+          },
+          {
+            "name": "winner",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "endReason",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "moves",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "GameStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Waiting"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Aborted"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidGameStatus"
+    },
+    {
+      "code": 6001,
+      "name": "NotPlayerTurn"
+    },
+    {
+      "code": 6002,
+      "name": "TimeoutNotReached"
+    },
+    {
+      "code": 6003,
+      "name": "NotWinner"
+    },
+    {
+      "code": 6004,
+      "name": "InactivityTimeNotReached"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidMove"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientFunds"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidReason"
+    }
+  ]
+};
+
 const IDLLoader: React.FC = () => {
-  const [idlContent, setIdlContent] = useState('');
+  const [idlContent, setIdlContent] = useState(JSON.stringify(CHESS_IDL, null, 2));
   const [isLoading, setIsLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(isIDLInitialized());
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (!isLoaded) {
+      handleIDLLoad();
+    }
+  }, []);
+
   const handleIDLLoad = () => {
     try {
       setIsLoading(true);
-      // Parse the IDL JSON
-      const idlJson = JSON.parse(idlContent);
       
-      // Initialize the IDL in the contract
-      const success = initializeGameIDL(idlJson);
+      const success = initializeGameIDL(CHESS_IDL);
       
       if (success) {
         setIsLoaded(true);
@@ -75,7 +329,6 @@ const IDLLoader: React.FC = () => {
     });
   };
 
-  // Create sample IDL for demonstration
   const handleUseExample = () => {
     const exampleIDL = {
       "version": "0.1.0",
@@ -315,7 +568,9 @@ const IDLLoader: React.FC = () => {
           )}
         </div>
         <CardDescription className="text-sm sm:text-base">
-          Paste your Solana smart contract IDL JSON below to enable on-chain staking functionality.
+          {isLoaded ? 
+            "The Solana smart contract IDL has been loaded. Your chess game can now interact with the blockchain." :
+            "Paste your Solana smart contract IDL JSON below to enable on-chain staking functionality."}
         </CardDescription>
       </CardHeader>
       <CardContent>
