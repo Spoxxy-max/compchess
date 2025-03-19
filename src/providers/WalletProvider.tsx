@@ -235,7 +235,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const disconnectWallet = async () => {
+  const disconnectWallet = async (): Promise<void> => {
     if (!wallet) return;
     
     try {
@@ -252,8 +252,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (location.pathname !== '/') {
         navigate('/');
       }
-      
-      return true;
     } catch (error: any) {
       console.error("Disconnect error:", error);
       toast({
@@ -261,7 +259,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         description: error.message || "Failed to disconnect wallet",
         variant: "destructive",
       });
-      return false;
     }
   };
 
