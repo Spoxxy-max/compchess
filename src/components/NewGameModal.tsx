@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useWallet } from '../integrations/solana/wallet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { TimeControl, TimeControlOption } from '../utils/chessTypes';
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { timeControlOptions } from '../utils/chessUtils';
+import { TimeControl } from '../utils/chessTypes';
+import { useToast } from "@/hooks/use-toast";
 
 interface NewGameModalProps {
   isOpen: boolean;
@@ -15,108 +15,106 @@ interface NewGameModalProps {
 }
 
 const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGame }) => {
-  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControlOption>('blitz');
-  const [customMinutes, setCustomMinutes] = useState(5);
-  const [customIncrement, setCustomIncrement] = useState(3);
-  const [stake, setStake] = useState(0.1);
+  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl>(timeControlOptions[0]);
+  const [stakeAmount, setStakeAmount] = useState(0);
+  const { wallet } = useWallet();
+  const { toast } = useToast();
+  
+  const MAX_STAKE = 100; // Maximum stake amount in SOL
 
   const handleCreateGame = () => {
-    const selectedOption = timeControlOptions.find(option => option.type === selectedTimeControl);
-    
-    let timeControl: TimeControl;
-    
-    if (selectedTimeControl === 'custom') {
-      timeControl = {
-        type: 'custom',
-        startTime: customMinutes * 60,
-        increment: customIncrement,
-        label: `Custom - ${customMinutes}+${customIncrement}`,
-      };
-    } else if (selectedOption) {
-      timeControl = selectedOption;
-    } else {
-      // Fallback to blitz if something goes wrong
-      timeControl = timeControlOptions[0];
+    // Check if wallet has enough balance
+    if (wallet && stakeAmount > 0) {
+      if (wallet.balance < stakeAmount) {
+        toast({
+          title: "Insufficient Balance",
+          description: `You need at least ${stakeAmount} SOL in your wallet to stake this game.`,
+          variant: "destructive"
+        });
+        return;
+      }
     }
     
-    onCreateGame(timeControl, stake);
+    onCreateGame(selectedTimeControl, stakeAmount);
     onClose();
+  };
+
+  const handleTimeControlSelect = (timeControl: TimeControl) => {
+    setSelectedTimeControl(timeControl);
+  };
+
+  // Format time for display
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-card sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Create New Game</DialogTitle>
         </DialogHeader>
-        
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="time-control">Time Control</Label>
-            <RadioGroup
-              value={selectedTimeControl}
-              onValueChange={(value) => setSelectedTimeControl(value as TimeControlOption)}
-              className="grid grid-cols-2 gap-2"
-            >
-              {timeControlOptions.map((option) => (
-                <div key={option.type} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option.type} id={option.type} />
-                  <Label htmlFor={option.type} className="cursor-pointer">
-                    {option.label}
-                  </Label>
+        <div className="py-4">
+          <h3 className="text-md font-medium mb-3">Time Control</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {timeControlOptions.map((timeControl) => (
+              <div
+                key={timeControl.type}
+                className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedTimeControl.type === timeControl.type
+                    ? 'border-solana bg-solana/10'
+                    : 'border-border hover:border-solana/50'
+                }`}
+                onClick={() => handleTimeControlSelect(timeControl)}
+              >
+                <div className="font-medium">{timeControl.label}</div>
+                <div className="text-sm text-muted-foreground">
+                  {formatTime(timeControl.startTime)} + {timeControl.increment}s
                 </div>
-              ))}
-            </RadioGroup>
+              </div>
+            ))}
           </div>
 
-          {selectedTimeControl === 'custom' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="custom-minutes">Minutes</Label>
-                <Input
-                  id="custom-minutes"
-                  type="number"
-                  min="1"
-                  max="180"
-                  value={customMinutes}
-                  onChange={(e) => setCustomMinutes(parseInt(e.target.value) || 5)}
-                  className="bg-secondary"
-                />
+          <div className="mt-6">
+            <h3 className="text-md font-medium mb-3">Stake Amount (SOL)</h3>
+            <div className="space-y-3">
+              <Slider
+                value={[stakeAmount]}
+                min={0}
+                max={MAX_STAKE}
+                step={0.1}
+                onValueChange={(value) => setStakeAmount(value[0])}
+                className="mb-6"
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">0 SOL</span>
+                <div className="px-3 py-1 bg-card rounded border border-border">
+                  <span className="font-medium">{stakeAmount.toFixed(1)} SOL</span>
+                </div>
+                <span className="text-sm text-muted-foreground">{MAX_STAKE} SOL</span>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="custom-increment">Increment (sec)</Label>
-                <Input
-                  id="custom-increment"
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={customIncrement}
-                  onChange={(e) => setCustomIncrement(parseInt(e.target.value) || 0)}
-                  className="bg-secondary"
-                />
-              </div>
+              
+              {wallet && (
+                <div className="text-sm mt-2 text-right">
+                  Your balance: <span className="font-medium">{wallet.balance.toFixed(2)} SOL</span>
+                </div>
+              )}
+              
+              {wallet && stakeAmount > wallet.balance && (
+                <div className="text-sm text-red-500 mt-1">
+                  Insufficient balance for this stake amount
+                </div>
+              )}
             </div>
-          )}
-
-          <div className="grid gap-2">
-            <Label htmlFor="stake">Stake Amount (SOL)</Label>
-            <Input
-              id="stake"
-              type="number"
-              min="0"
-              step="0.01"
-              value={stake}
-              onChange={(e) => setStake(parseFloat(e.target.value) || 0)}
-              className="bg-secondary"
-            />
           </div>
         </div>
-
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-solana hover:bg-solana-dark text-white" onClick={handleCreateGame}>
+          <Button onClick={handleCreateGame}>
             Create Game
           </Button>
         </DialogFooter>
