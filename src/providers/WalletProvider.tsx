@@ -282,8 +282,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const success = initializeGameIDL(CHESS_IDL);
       console.log("Chess Game IDL initialized during provider load:", success);
       
-      // Remove the automatic toast notification for IDL loading
-      // This line is removed/commented out
+      if (success) {
+        toast({
+          title: "Chess Game IDL Loaded",
+          description: "Chess Game IDL has been loaded automatically",
+        });
+      }
     }
 
     // Disconnect wallet on page refresh
@@ -308,44 +312,18 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       const newWallet = createWallet(type);
 
-      // Check if on mobile
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      // Handle mobile wallet connection
-      if (isMobile) {
-        try {
-          // If on mobile, we'll try to use the wallet adapter directly
-          // or create a deep link to open the wallet app
-          if (type === 'phantom' && !window.phantom?.solana) {
-            window.location.href = `https://phantom.app/ul/browse/${window.location.href}`;
-            return;
-          } 
-          if (type === 'solflare' && !window.solflare) {
-            window.location.href = `https://solflare.com/ul/browse/${window.location.href}`;
-            return;
-          }
-          if (type === 'trustwallet' && !(window.trustwallet || window.solana?.isTrust)) {
-            window.location.href = `https://link.trustwallet.com/open_url?url=${window.location.href}`;
-            return;
-          }
-          // For backpack and other wallets, attempt to use their deep links if available
-        } catch (mobileError) {
-          console.error("Mobile wallet connection error:", mobileError);
-        }
-      } else {
-        // Desktop wallet extension checks
-        if (type === 'phantom' && !window.phantom?.solana) {
-          throw new Error('Phantom wallet is not installed. Please install it from https://phantom.app/');
-        } 
-        if (type === 'solflare' && !window.solflare) {
-          throw new Error('Solflare wallet is not installed. Please install it from https://solflare.com/');
-        } 
-        if (type === 'trustwallet' && !(window.trustwallet || window.solana?.isTrust)) {
-          throw new Error('Trust Wallet is not installed. Please install it from https://trustwallet.com/');
-        } 
-        if (type === 'backpack' && !window.backpack?.solana) {
-          throw new Error('Backpack wallet is not installed. Please install it from https://www.backpack.app/');
-        }
+      // Check if the wallet is installed
+      if (type === 'phantom' && !window.phantom?.solana) {
+        throw new Error('Phantom wallet is not installed. Please install it from https://phantom.app/');
+      } 
+      if (type === 'solflare' && !window.solflare) {
+        throw new Error('Solflare wallet is not installed. Please install it from https://solflare.com/');
+      } 
+      if (type === 'trustwallet' && !(window.trustwallet || window.solana?.isTrust)) {
+        throw new Error('Trust Wallet is not installed. Please install it from https://trustwallet.com/');
+      } 
+      if (type === 'backpack' && !window.backpack?.solana) {
+        throw new Error('Backpack wallet is not installed. Please install it from https://www.backpack.app/');
       }
 
       try {
