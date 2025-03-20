@@ -1,6 +1,6 @@
 
 import { BaseWalletAdapter } from './BaseWalletAdapter';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, Connection } from '@solana/web3.js';
 
 export class PhantomWalletAdapter extends BaseWalletAdapter {
   walletName = 'Phantom';
@@ -63,9 +63,17 @@ export class PhantomWalletAdapter extends BaseWalletAdapter {
         throw new Error('Phantom wallet not connected');
       }
       
-      // Sign and send the transaction
-      const signature = await window.phantom.solana.signAndSendTransaction(transaction);
-      return signature.signature;
+      // If phantom has signAndSendTransaction, use it
+      if (window.phantom.solana.signAndSendTransaction) {
+        const result = await window.phantom.solana.signAndSendTransaction(transaction);
+        return result.signature;
+      }
+      
+      // Fallback: manually sign and send the transaction
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const signedTransaction = await this.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      return signature;
     } catch (error) {
       console.error('Error sending transaction with Phantom wallet:', error);
       throw error;

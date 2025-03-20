@@ -1,6 +1,6 @@
 
 import { BaseWalletAdapter } from './BaseWalletAdapter';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, Connection } from '@solana/web3.js';
 
 export class SolflareWalletAdapter extends BaseWalletAdapter {
   walletName = 'Solflare';
@@ -14,7 +14,7 @@ export class SolflareWalletAdapter extends BaseWalletAdapter {
       // Request connection
       await window.solflare.connect();
       
-      this.publicKey = window.solflare.publicKey.toString();
+      this.publicKey = window.solflare.publicKey?.toString() || '';
       this.connected = true;
       
       // Get wallet balance
@@ -63,8 +63,16 @@ export class SolflareWalletAdapter extends BaseWalletAdapter {
         throw new Error('Solflare wallet not connected');
       }
       
-      // Sign and send the transaction
-      const signature = await window.solflare.signAndSendTransaction(transaction);
+      // Try to use signAndSendTransaction if available
+      if (window.solflare.signAndSendTransaction) {
+        const signature = await window.solflare.signAndSendTransaction(transaction);
+        return typeof signature === 'string' ? signature : signature.signature;
+      }
+      
+      // Fallback: manually sign and send the transaction
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const signedTransaction = await this.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
       return signature;
     } catch (error) {
       console.error('Error sending transaction with Solflare wallet:', error);

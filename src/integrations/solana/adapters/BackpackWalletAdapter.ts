@@ -1,6 +1,7 @@
 
 import { BaseWalletAdapter } from './BaseWalletAdapter';
 import { PublicKey, Transaction } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 
 export class BackpackWalletAdapter extends BaseWalletAdapter {
   walletName = 'Backpack';
@@ -14,13 +15,17 @@ export class BackpackWalletAdapter extends BaseWalletAdapter {
       // Request connection
       const result = await window.backpack.solana.connect();
       
-      this.publicKey = result.publicKey.toString();
-      this.connected = true;
-      
-      // Get wallet balance
-      this.balance = await this.getBalance(this.publicKey);
-      
-      console.log(`Backpack wallet connected: ${this.publicKey}`);
+      if (result && result.publicKey) {
+        this.publicKey = result.publicKey.toString();
+        this.connected = true;
+        
+        // Get wallet balance
+        this.balance = await this.getBalance(this.publicKey);
+        
+        console.log(`Backpack wallet connected: ${this.publicKey}`);
+      } else {
+        throw new Error('Could not get publicKey from Backpack wallet');
+      }
     } catch (error) {
       console.error('Error connecting to Backpack wallet:', error);
       throw error;
@@ -49,6 +54,10 @@ export class BackpackWalletAdapter extends BaseWalletAdapter {
         throw new Error('Backpack wallet not connected');
       }
       
+      if (!window.backpack.solana.signTransaction) {
+        throw new Error('Backpack wallet does not support signTransaction');
+      }
+      
       const signedTransaction = await window.backpack.solana.signTransaction(transaction);
       return signedTransaction;
     } catch (error) {
@@ -63,9 +72,17 @@ export class BackpackWalletAdapter extends BaseWalletAdapter {
         throw new Error('Backpack wallet not connected');
       }
       
-      // Sign and send the transaction
-      const signature = await window.backpack.solana.signAndSendTransaction(transaction);
-      return signature.signature;
+      // Try to use signAndSendTransaction if available
+      if (window.backpack.solana.signAndSendTransaction) {
+        const result = await window.backpack.solana.signAndSendTransaction(transaction);
+        return result.signature;
+      }
+      
+      // Fallback: manually sign and send the transaction
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const signedTransaction = await this.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      return signature;
     } catch (error) {
       console.error('Error sending transaction with Backpack wallet:', error);
       throw error;
@@ -76,6 +93,10 @@ export class BackpackWalletAdapter extends BaseWalletAdapter {
     try {
       if (!window.backpack?.solana || !this.connected) {
         throw new Error('Backpack wallet not connected');
+      }
+      
+      if (!window.backpack.solana.signAllTransactions) {
+        throw new Error('Backpack wallet does not support signAllTransactions');
       }
       
       const signedTransactions = await window.backpack.solana.signAllTransactions(transactions);
@@ -90,6 +111,10 @@ export class BackpackWalletAdapter extends BaseWalletAdapter {
     try {
       if (!window.backpack?.solana || !this.connected) {
         throw new Error('Backpack wallet not connected');
+      }
+      
+      if (!window.backpack.solana.signMessage) {
+        throw new Error('Backpack wallet does not support signMessage');
       }
       
       const signature = await window.backpack.solana.signMessage(message);

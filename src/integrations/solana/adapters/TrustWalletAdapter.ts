@@ -1,6 +1,6 @@
 
 import { BaseWalletAdapter } from './BaseWalletAdapter';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, Connection } from '@solana/web3.js';
 
 export class TrustWalletAdapter extends BaseWalletAdapter {
   walletName = 'Trust Wallet';
@@ -18,13 +18,17 @@ export class TrustWalletAdapter extends BaseWalletAdapter {
       // Request connection
       await provider.connect();
       
-      this.publicKey = provider.publicKey.toString();
-      this.connected = true;
-      
-      // Get wallet balance
-      this.balance = await this.getBalance(this.publicKey);
-      
-      console.log(`Trust Wallet connected: ${this.publicKey}`);
+      if (provider.publicKey) {
+        this.publicKey = provider.publicKey.toString();
+        this.connected = true;
+        
+        // Get wallet balance
+        this.balance = await this.getBalance(this.publicKey);
+        
+        console.log(`Trust Wallet connected: ${this.publicKey}`);
+      } else {
+        throw new Error('Could not get publicKey from Trust Wallet');
+      }
     } catch (error) {
       console.error('Error connecting to Trust Wallet:', error);
       throw error;
@@ -57,6 +61,10 @@ export class TrustWalletAdapter extends BaseWalletAdapter {
         throw new Error('Trust Wallet not connected');
       }
       
+      if (!provider.signTransaction) {
+        throw new Error('Trust Wallet does not support signTransaction');
+      }
+      
       const signedTransaction = await provider.signTransaction(transaction);
       return signedTransaction;
     } catch (error) {
@@ -73,9 +81,21 @@ export class TrustWalletAdapter extends BaseWalletAdapter {
         throw new Error('Trust Wallet not connected');
       }
       
-      // Sign and send the transaction
-      const signature = await provider.signAndSendTransaction(transaction);
-      return typeof signature === 'string' ? signature : signature.signature;
+      // Try to use signAndSendTransaction if available
+      if (provider.signAndSendTransaction) {
+        const signature = await provider.signAndSendTransaction(transaction);
+        return typeof signature === 'string' ? signature : signature.signature;
+      }
+      
+      // Fallback: manually sign and send the transaction
+      if (!provider.signTransaction) {
+        throw new Error('Trust Wallet does not support transaction signing');
+      }
+      
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const signedTransaction = await provider.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      return signature;
     } catch (error) {
       console.error('Error sending transaction with Trust Wallet:', error);
       throw error;
@@ -88,6 +108,10 @@ export class TrustWalletAdapter extends BaseWalletAdapter {
       
       if (!provider || !this.connected) {
         throw new Error('Trust Wallet not connected');
+      }
+      
+      if (!provider.signAllTransactions) {
+        throw new Error('Trust Wallet does not support signAllTransactions');
       }
       
       const signedTransactions = await provider.signAllTransactions(transactions);
@@ -104,6 +128,10 @@ export class TrustWalletAdapter extends BaseWalletAdapter {
       
       if (!provider || !this.connected) {
         throw new Error('Trust Wallet not connected');
+      }
+      
+      if (!provider.signMessage) {
+        throw new Error('Trust Wallet does not support signMessage');
       }
       
       const signature = await provider.signMessage(message);
