@@ -25,7 +25,12 @@ import {
   abortGame
 } from '../utils/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { chessGameContract, executeChessContractMethod, isIDLInitialized } from '../integrations/solana/chessSmartContract';
+import { 
+  chessGameContract, 
+  executeChessContractMethod, 
+  isIDLInitialized,
+  createStakingTransaction
+} from '../integrations/solana/chessSmartContract';
 
 interface GamePageProps {
   gameId?: string;

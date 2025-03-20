@@ -1,4 +1,3 @@
-
 import { executeSmartContractMethod, buildStakingTransaction, solToLamports, lamportsToSol } from './smartContract';
 import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js';
 import { ChessErrorCode, ChessGameAccount, GameStatus } from './walletTypes';
@@ -228,8 +227,8 @@ export const chessGameContract: ChessGameContract = {
   }
 };
 
-// Create transaction for staking
-export const createStakingTransaction = async (walletPublicKey: string, stake: number, timeControl: number) => {
+// Create transaction for staking - making sure it's properly exported
+export const createStakingTransaction = async (walletPublicKey: string, stake: number, timeControl: number): Promise<Transaction> => {
   if (!walletPublicKey) {
     throw new Error("Wallet public key is required");
   }
