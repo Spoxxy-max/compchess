@@ -66,7 +66,8 @@ export class SolflareWalletAdapter extends BaseWalletAdapter {
       // Try to use signAndSendTransaction if available
       if (window.solflare.signAndSendTransaction) {
         const signature = await window.solflare.signAndSendTransaction(transaction);
-        return typeof signature === 'string' ? signature : signature.signature;
+        // Handle the signature which could be a string directly or an object with a signature property
+        return typeof signature === 'string' ? signature : '';
       }
       
       // Fallback: manually sign and send the transaction
