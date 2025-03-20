@@ -139,7 +139,7 @@ export const buildStakingTransaction = async (
   // In a real implementation, this would be a program instruction
   const instruction = SystemProgram.transfer({
     fromPubkey: new PublicKey(walletPublicKey),
-    toPubkey: new PublicKey(gameContract.programId),
+    toPubkey: new PublicKey("ChessGameProgramPlaceholder111111111111111111111"),
     lamports: stakeLamports,
   });
   
@@ -148,6 +148,9 @@ export const buildStakingTransaction = async (
   
   return transaction;
 };
+
+// Creating a renamed function for game page compatibility
+export const createStakingTransaction = buildStakingTransaction;
 
 // Helper function to execute a smart contract method with error handling
 export const executeSmartContractMethod = async (
