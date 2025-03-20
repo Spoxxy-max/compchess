@@ -1,4 +1,3 @@
-
 import { executeSmartContractMethod } from './smartContract';
 import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js';
 import { ChessErrorCode, ChessGameAccount, GameStatus } from './walletTypes';
@@ -49,6 +48,16 @@ const getErrorMessage = (code: number): string => {
   }
 };
 
+// Update this function to convert SOL to lamports
+export const solToLamports = (solAmount: number): number => {
+  return Math.floor(solAmount * 1_000_000_000); // 1 SOL = 1 billion lamports
+};
+
+// Add function to convert lamports to SOL
+export const lamportsToSol = (lamports: number): number => {
+  return lamports / 1_000_000_000;
+};
+
 // Game contract interface with Solana-specific methods
 export interface ChessGameContract {
   // Create a new chess game with a stake
@@ -85,12 +94,13 @@ export interface ChessGameContract {
 // Implementation of the contract using the IDL
 export const chessGameContract: ChessGameContract = {
   createGame: async (stake: number, timeControl: number) => {
-    console.log(`Creating game with stake ${stake} SOL and time control ${timeControl}`);
+    const stakeLamports = solToLamports(stake);
+    console.log(`Creating game with stake ${stake} SOL (${stakeLamports} lamports) and time control ${timeControl}`);
     try {
       if (!programId) throw new Error("Program ID not initialized");
       
       // This will be implemented with actual Solana program call
-      const result = await executeSmartContractMethod('createGame', [stake, timeControl]);
+      const result = await executeSmartContractMethod('createGame', [stakeLamports, timeControl]);
       
       if (!result.success) {
         throw new Error(result.error?.message || "Failed to create game");
@@ -107,7 +117,8 @@ export const chessGameContract: ChessGameContract = {
   },
   
   joinGame: async (gameId: string, stake: number) => {
-    console.log(`Joining game ${gameId} with stake ${stake} SOL`);
+    const stakeLamports = solToLamports(stake);
+    console.log(`Joining game ${gameId} with stake ${stake} SOL (${stakeLamports} lamports)`);
     try {
       if (!programId) throw new Error("Program ID not initialized");
       

@@ -19,6 +19,14 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
   stake, 
   timeControl 
 }) => {
+  // Format stake amount with more precision for small amounts
+  const formatStakeAmount = (amount: number) => {
+    if (amount < 0.01) {
+      return amount.toFixed(5);
+    }
+    return amount.toFixed(3);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -41,12 +49,12 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
             </div>
             <div className="flex flex-col">
               <span className="text-sm text-gray-400">Stake Amount</span>
-              <span className="font-medium text-solana">{stake} SOL</span>
+              <span className="font-medium text-solana">{formatStakeAmount(stake)} SOL</span>
             </div>
           </div>
           
           <p className="text-sm text-gray-300">
-            By confirming, you agree to stake {stake} SOL on this game. This amount will be held in escrow until the game concludes.
+            By confirming, you agree to stake {formatStakeAmount(stake)} SOL on this game. This amount will be held in escrow until the game concludes.
           </p>
         </div>
         

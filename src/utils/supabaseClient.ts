@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor } from './chessTypes';
@@ -50,6 +49,9 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
   
   const startTime = initialBoard.whiteTime; // Both white and black have the same starting time
   
+  // Store stake with precision up to 6 decimal places for small amounts (lamports)
+  const formattedStake = parseFloat(stake.toFixed(6));
+  
   const { data, error } = await supabase
     .from('chess_games')
     .insert({
@@ -57,7 +59,7 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
       time_control: timeControl,
       time_white: startTime,
       time_black: startTime,
-      stake: stake,
+      stake: formattedStake,
       status: 'waiting' as const,
       board_state: boardToJson(initialBoard),
       move_history: [],
@@ -151,6 +153,8 @@ export const getAvailableGames = async (currentUserId?: string): Promise<GameDat
   
   return (data || []).map(game => ({
     ...game,
+    // Ensure stake is properly formatted as a number
+    stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
     board_state: jsonToBoard(game.board_state),
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
     status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',

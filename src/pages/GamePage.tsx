@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
@@ -54,7 +53,8 @@ const GamePage: React.FC<GamePageProps> = ({
   const [opponentJoined, setOpponentJoined] = useState(false);
   const [countdownComplete, setCountdownComplete] = useState(false);
   const [firstMoveMade, setFirstMoveMade] = useState(false);
-
+  const [transactionPending, setTransactionPending] = useState(false);
+  
   const inactivityCheckInterval = useRef<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
@@ -84,7 +84,6 @@ const GamePage: React.FC<GamePageProps> = ({
       }
     }
     
-    // Always show stake modal for non-practice games with a stake
     if (stake > 0 && !isPracticeMode && !stakeConfirmed) {
       console.log("Showing stake modal for game with stake:", stake);
       setShowStakeModal(true);
@@ -96,6 +95,7 @@ const GamePage: React.FC<GamePageProps> = ({
   const handleStakeConfirm = async () => {
     try {
       console.log("Confirming stake of", stake, "SOL");
+      setTransactionPending(true);
       
       if (!isIDLInitialized()) {
         toast({
@@ -116,6 +116,7 @@ const GamePage: React.FC<GamePageProps> = ({
             description: `You need at least ${stake} SOL in your wallet to stake this game.`,
             variant: "destructive",
           });
+          setTransactionPending(false);
           return;
         }
         
@@ -125,10 +126,55 @@ const GamePage: React.FC<GamePageProps> = ({
             setStakeConfirmed(true);
             setShowStakeModal(false);
             
-            toast({
-              title: "Stake Confirmed",
-              description: `Successfully staked ${stake} SOL on this game`,
+            const initialBoard = createInitialBoard();
+            initialBoard.whiteTime = timeControl.startTime;
+            initialBoard.blackTime = timeControl.startTime;
+            initialBoard.isTimerRunning = false;
+            
+            const newGameData = await createGame({
+              hostId: wallet.publicKey,
+              timeControl: timeControl.type,
+              timeIncrement: timeControl.increment,
+              stake: stake,
+              initialBoard
             });
+            
+            if (newGameData) {
+              setBoard(initialBoard);
+              setGameData(newGameData);
+              setGameState('waiting');
+              
+              navigate(`/game/${newGameData.id}`, { 
+                replace: true,
+                state: {
+                  timeControl,
+                  stake,
+                  playerColor: 'white'
+                }
+              });
+              
+              toast({
+                title: "Game Created",
+                description: `Successfully staked ${stake} SOL. Waiting for an opponent to join.`,
+              });
+              
+              const subscription = subscribeToGame(newGameData.id, (payload) => {
+                const updatedGame = payload.new as GameData;
+                
+                if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
+                  setOpponentJoined(true);
+                  setGameState('countdown');
+                  toast({
+                    title: "Opponent Joined",
+                    description: "The game will start shortly!",
+                  });
+                }
+                
+                setGameData(updatedGame);
+              });
+              
+              setSubscription(subscription);
+            }
           } else {
             toast({
               title: "Stake Failed",
@@ -143,10 +189,23 @@ const GamePage: React.FC<GamePageProps> = ({
             setStakeConfirmed(true);
             setShowStakeModal(false);
             
-            toast({
-              title: "Stake Confirmed",
-              description: `Successfully staked ${stake} SOL to join this game`,
-            });
+            if (gameId !== 'practice') {
+              const joinSuccess = await joinGame(gameId, wallet.publicKey);
+              if (joinSuccess) {
+                setGameState('countdown');
+                toast({
+                  title: "Joined Game",
+                  description: `Successfully staked ${stake} SOL to join this game`,
+                });
+              } else {
+                toast({
+                  title: "Join Failed",
+                  description: "Could not join the game in the database",
+                  variant: "destructive",
+                });
+                navigate('/');
+              }
+            }
           } else {
             toast({
               title: "Stake Failed",
@@ -163,6 +222,8 @@ const GamePage: React.FC<GamePageProps> = ({
         description: error.message || "An error occurred when staking",
         variant: "destructive",
       });
+    } finally {
+      setTransactionPending(false);
     }
   };
 
@@ -560,6 +621,16 @@ const GamePage: React.FC<GamePageProps> = ({
         stake={stake}
         timeControl={timeControl.label}
       />
+      
+      {transactionPending && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg shadow-xl text-center">
+            <div className="animate-spin w-10 h-10 border-4 border-solana border-t-transparent rounded-full mx-auto mb-4"></div>
+            <h3 className="text-lg font-medium mb-2">Processing Transaction</h3>
+            <p className="text-muted-foreground text-sm">Please confirm in your wallet...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

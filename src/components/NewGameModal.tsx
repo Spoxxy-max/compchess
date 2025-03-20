@@ -20,6 +20,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
   const { wallet } = useWallet();
   const { toast } = useToast();
   
+  const MIN_STAKE = 0.001; // Minimum stake amount in SOL
   const MAX_STAKE = 100; // Maximum stake amount in SOL
 
   const handleCreateGame = () => {
@@ -28,7 +29,16 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
       if (wallet.balance < stakeAmount) {
         toast({
           title: "Insufficient Balance",
-          description: `You need at least ${stakeAmount} SOL in your wallet to stake this game.`,
+          description: `You need at least ${stakeAmount.toFixed(3)} SOL in your wallet to stake this game.`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (stakeAmount < MIN_STAKE) {
+        toast({
+          title: "Minimum Stake Required",
+          description: `Stake amount must be at least ${MIN_STAKE} SOL`,
           variant: "destructive"
         });
         return;
@@ -104,29 +114,35 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
                 type="number"
                 value={stakeAmount}
                 onChange={handleStakeInput}
-                min={0}
+                min={MIN_STAKE}
                 max={MAX_STAKE}
-                step={0.1}
+                step={0.001}
                 placeholder="Enter stake amount"
                 className="w-full"
               />
               
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Enter amount (0-{MAX_STAKE} SOL)</span>
+                <span className="text-sm text-muted-foreground">Enter amount ({MIN_STAKE}-{MAX_STAKE} SOL)</span>
                 <div className="px-3 py-1 bg-card rounded border border-border">
-                  <span className="font-medium">{stakeAmount.toFixed(1)} SOL</span>
+                  <span className="font-medium">{stakeAmount.toFixed(3)} SOL</span>
                 </div>
               </div>
               
               {wallet && (
                 <div className="text-sm mt-2 text-right">
-                  Your balance: <span className="font-medium">{wallet.balance.toFixed(2)} SOL</span>
+                  Your balance: <span className="font-medium">{wallet.balance.toFixed(3)} SOL</span>
                 </div>
               )}
               
               {wallet && stakeAmount > wallet.balance && (
                 <div className="text-sm text-red-500 mt-1">
                   Insufficient balance for this stake amount
+                </div>
+              )}
+
+              {stakeAmount > 0 && stakeAmount < MIN_STAKE && (
+                <div className="text-sm text-yellow-500 mt-1">
+                  Minimum stake is {MIN_STAKE} SOL
                 </div>
               )}
             </div>
@@ -136,7 +152,10 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleCreateGame}>
+          <Button 
+            onClick={handleCreateGame}
+            disabled={stakeAmount < MIN_STAKE && stakeAmount > 0}
+          >
             Create Game
           </Button>
         </DialogFooter>
