@@ -112,7 +112,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
             <div className="space-y-3">
               <Input
                 type="number"
-                value={stakeAmount}
+                value={stakeAmount === 0 ? '' : stakeAmount}
                 onChange={handleStakeInput}
                 min={MIN_STAKE}
                 max={MAX_STAKE}
@@ -154,7 +154,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
           </Button>
           <Button 
             onClick={handleCreateGame}
-            disabled={stakeAmount < MIN_STAKE && stakeAmount > 0}
+            disabled={(stakeAmount > 0 && stakeAmount < MIN_STAKE) || (wallet && stakeAmount > wallet.balance)}
           >
             Create Game
           </Button>
