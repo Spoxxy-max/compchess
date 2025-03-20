@@ -135,18 +135,26 @@ export const buildStakingTransaction = async (
   // Create a new transaction
   const transaction = new Transaction();
   
-  // For now, we'll just add a system transfer to the program ID
-  // In a real implementation, this would be a program instruction
-  const instruction = SystemProgram.transfer({
-    fromPubkey: new PublicKey(walletPublicKey),
-    toPubkey: new PublicKey("ChessGameProgramPlaceholder111111111111111111111"),
-    lamports: stakeLamports,
-  });
-  
-  // Add the instruction to the transaction
-  transaction.add(instruction);
-  
-  return transaction;
+  try {
+    // Create a valid Solana public key from the wallet address
+    const fromPubkey = new PublicKey(walletPublicKey);
+    
+    // For now, we'll just add a system transfer to the program ID
+    // In a real implementation, this would be a program instruction
+    const instruction = SystemProgram.transfer({
+      fromPubkey: fromPubkey,
+      toPubkey: new PublicKey("ChessGameProgramPlaceholder111111111111111111111"),
+      lamports: stakeLamports,
+    });
+    
+    // Add the instruction to the transaction
+    transaction.add(instruction);
+    
+    return transaction;
+  } catch (error: any) {
+    console.error("Error building transaction:", error);
+    throw new Error(`Failed to build transaction: ${error.message}`);
+  }
 };
 
 // Creating a renamed function for game page compatibility
