@@ -113,7 +113,7 @@ const GamePage: React.FC<GamePageProps> = ({
         if (wallet.balance < stake) {
           toast({
             title: "Insufficient Balance",
-            description: `You need at least ${stake} SOL in your wallet to stake this game.`,
+            description: `You need at least ${stake.toFixed(4)} SOL in your wallet to stake this game.`,
             variant: "destructive",
           });
           setTransactionPending(false);
@@ -121,95 +121,122 @@ const GamePage: React.FC<GamePageProps> = ({
         }
         
         if (playerColor === 'white') {
-          const result = await executeChessContractMethod('createGame', [stake, timeControl.startTime]);
-          if (result.success) {
-            setStakeConfirmed(true);
-            setShowStakeModal(false);
+          const transaction = await createStakingTransaction(wallet.publicKey, stake, timeControl.startTime);
+          
+          const txResponse = await wallet.sendTransaction(transaction);
+          console.log("Transaction response:", txResponse);
+          
+          if (txResponse) {
+            const result = await executeChessContractMethod('createGame', [stake, timeControl.startTime]);
             
-            const initialBoard = createInitialBoard();
-            initialBoard.whiteTime = timeControl.startTime;
-            initialBoard.blackTime = timeControl.startTime;
-            initialBoard.isTimerRunning = false;
-            
-            const newGameData = await createGame({
-              hostId: wallet.publicKey,
-              timeControl: timeControl.type,
-              timeIncrement: timeControl.increment,
-              stake: stake,
-              initialBoard
-            });
-            
-            if (newGameData) {
-              setBoard(initialBoard);
-              setGameData(newGameData);
-              setGameState('waiting');
+            if (result.success) {
+              setStakeConfirmed(true);
+              setShowStakeModal(false);
               
-              navigate(`/game/${newGameData.id}`, { 
-                replace: true,
-                state: {
-                  timeControl,
-                  stake,
-                  playerColor: 'white'
-                }
+              const initialBoard = createInitialBoard();
+              initialBoard.whiteTime = timeControl.startTime;
+              initialBoard.blackTime = timeControl.startTime;
+              initialBoard.isTimerRunning = false;
+              
+              const newGameData = await createGame({
+                hostId: wallet.publicKey,
+                timeControl: timeControl.type,
+                timeIncrement: timeControl.increment,
+                stake: stake,
+                initialBoard
               });
               
+              if (newGameData) {
+                setBoard(initialBoard);
+                setGameData(newGameData);
+                setGameState('waiting');
+                
+                navigate(`/game/${newGameData.id}`, { 
+                  replace: true,
+                  state: {
+                    timeControl,
+                    stake,
+                    playerColor: 'white'
+                  }
+                });
+                
+                toast({
+                  title: "Game Created",
+                  description: `Successfully staked ${stake.toFixed(4)} SOL. Waiting for an opponent to join.`,
+                });
+                
+                const subscription = subscribeToGame(newGameData.id, (payload) => {
+                  const updatedGame = payload.new as GameData;
+                  
+                  if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
+                    setOpponentJoined(true);
+                    setGameState('countdown');
+                    toast({
+                      title: "Opponent Joined",
+                      description: "The game will start shortly!",
+                    });
+                  }
+                  
+                  setGameData(updatedGame);
+                });
+                
+                setSubscription(subscription);
+              }
+            } else {
               toast({
-                title: "Game Created",
-                description: `Successfully staked ${stake} SOL. Waiting for an opponent to join.`,
+                title: "Stake Failed",
+                description: result.error?.message || "Failed to stake funds",
+                variant: "destructive",
               });
-              
-              const subscription = subscribeToGame(newGameData.id, (payload) => {
-                const updatedGame = payload.new as GameData;
-                
-                if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
-                  setOpponentJoined(true);
-                  setGameState('countdown');
-                  toast({
-                    title: "Opponent Joined",
-                    description: "The game will start shortly!",
-                  });
-                }
-                
-                setGameData(updatedGame);
-              });
-              
-              setSubscription(subscription);
             }
           } else {
             toast({
-              title: "Stake Failed",
-              description: result.error?.message || "Failed to stake funds",
+              title: "Transaction Rejected",
+              description: "You rejected the transaction",
               variant: "destructive",
             });
           }
         } 
         else {
-          const result = await executeChessContractMethod('joinGame', [gameId, stake]);
-          if (result.success) {
-            setStakeConfirmed(true);
-            setShowStakeModal(false);
-            
-            if (gameId !== 'practice') {
-              const joinSuccess = await joinGame(gameId, wallet.publicKey);
-              if (joinSuccess) {
-                setGameState('countdown');
-                toast({
-                  title: "Joined Game",
-                  description: `Successfully staked ${stake} SOL to join this game`,
-                });
-              } else {
-                toast({
-                  title: "Join Failed",
-                  description: "Could not join the game in the database",
-                  variant: "destructive",
-                });
-                navigate('/');
+          const transaction = await createStakingTransaction(wallet.publicKey, stake, timeControl.startTime);
+          
+          const txResponse = await wallet.sendTransaction(transaction);
+          console.log("Transaction response:", txResponse);
+          
+          if (txResponse) {
+            const result = await executeChessContractMethod('joinGame', [gameId, stake]);
+            if (result.success) {
+              setStakeConfirmed(true);
+              setShowStakeModal(false);
+              
+              if (gameId !== 'practice') {
+                const joinSuccess = await joinGame(gameId, wallet.publicKey);
+                if (joinSuccess) {
+                  setGameState('countdown');
+                  toast({
+                    title: "Joined Game",
+                    description: `Successfully staked ${stake.toFixed(4)} SOL to join this game`,
+                  });
+                } else {
+                  toast({
+                    title: "Join Failed",
+                    description: "Could not join the game in the database",
+                    variant: "destructive",
+                  });
+                  navigate('/');
+                }
               }
+            } else {
+              toast({
+                title: "Stake Failed",
+                description: result.error?.message || "Failed to stake funds",
+                variant: "destructive",
+              });
             }
           } else {
             toast({
-              title: "Stake Failed",
-              description: result.error?.message || "Failed to stake funds",
+              title: "Transaction Rejected",
+              description: "You rejected the transaction",
               variant: "destructive",
             });
           }

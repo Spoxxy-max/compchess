@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { timeControlOptions } from '../utils/chessUtils';
 import { TimeControl } from '../utils/chessTypes';
 import { useToast } from "@/hooks/use-toast";
+import { lamportsToSol, solToLamports } from '../integrations/solana/smartContract';
 
 interface NewGameModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
   const { wallet } = useWallet();
   const { toast } = useToast();
   
-  const MIN_STAKE = 0.001; // Minimum stake amount in SOL
+  const MIN_STAKE = 0.0001; // Minimum stake amount in SOL (0.0001 SOL = 100,000 lamports)
   const MAX_STAKE = 100; // Maximum stake amount in SOL
 
   const handleCreateGame = () => {
@@ -29,7 +30,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
       if (wallet.balance < stakeAmount) {
         toast({
           title: "Insufficient Balance",
-          description: `You need at least ${stakeAmount.toFixed(3)} SOL in your wallet to stake this game.`,
+          description: `You need at least ${stakeAmount.toFixed(4)} SOL in your wallet to stake this game.`,
           variant: "destructive"
         });
         return;
@@ -80,6 +81,13 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  // Format small stake amounts with more precision
+  const formatStakeAmount = (amount: number) => {
+    if (amount === 0) return '0';
+    if (amount < 0.001) return amount.toFixed(4);
+    return amount.toFixed(3);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -116,7 +124,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
                 onChange={handleStakeInput}
                 min={MIN_STAKE}
                 max={MAX_STAKE}
-                step={0.001}
+                step={0.0001}
                 placeholder="Enter stake amount"
                 className="w-full"
               />
@@ -124,13 +132,13 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Enter amount ({MIN_STAKE}-{MAX_STAKE} SOL)</span>
                 <div className="px-3 py-1 bg-card rounded border border-border">
-                  <span className="font-medium">{stakeAmount.toFixed(3)} SOL</span>
+                  <span className="font-medium">{formatStakeAmount(stakeAmount)} SOL</span>
                 </div>
               </div>
               
               {wallet && (
                 <div className="text-sm mt-2 text-right">
-                  Your balance: <span className="font-medium">{wallet.balance.toFixed(3)} SOL</span>
+                  Your balance: <span className="font-medium">{wallet.balance.toFixed(4)} SOL</span>
                 </div>
               )}
               

@@ -1,4 +1,5 @@
-import { executeSmartContractMethod } from './smartContract';
+
+import { executeSmartContractMethod, buildStakingTransaction, solToLamports, lamportsToSol } from './smartContract';
 import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js';
 import { ChessErrorCode, ChessGameAccount, GameStatus } from './walletTypes';
 
@@ -46,16 +47,6 @@ const getErrorMessage = (code: number): string => {
     default:
       return `Unknown error: ${code}`;
   }
-};
-
-// Update this function to convert SOL to lamports
-export const solToLamports = (solAmount: number): number => {
-  return Math.floor(solAmount * 1_000_000_000); // 1 SOL = 1 billion lamports
-};
-
-// Add function to convert lamports to SOL
-export const lamportsToSol = (lamports: number): number => {
-  return lamports / 1_000_000_000;
 };
 
 // Game contract interface with Solana-specific methods
@@ -234,6 +225,20 @@ export const chessGameContract: ChessGameContract = {
     // This would query all games by pubkey
     // For now, we'll return a mock game ID
     return [`game_${Math.random().toString(36).substring(2, 10)}`];
+  }
+};
+
+// Create transaction for staking
+export const createStakingTransaction = async (walletPublicKey: string, stake: number, timeControl: number) => {
+  if (!walletPublicKey) {
+    throw new Error("Wallet public key is required");
+  }
+  
+  try {
+    return await buildStakingTransaction(walletPublicKey, stake, timeControl);
+  } catch (error) {
+    console.error('Error creating staking transaction:', error);
+    throw error;
   }
 };
 

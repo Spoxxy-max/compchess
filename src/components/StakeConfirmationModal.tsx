@@ -21,8 +21,8 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
 }) => {
   // Format stake amount with more precision for small amounts
   const formatStakeAmount = (amount: number) => {
-    if (amount < 0.01) {
-      return amount.toFixed(5);
+    if (amount < 0.001) {
+      return amount.toFixed(4);
     }
     return amount.toFixed(3);
   };

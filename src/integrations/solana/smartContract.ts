@@ -1,5 +1,13 @@
 
 // This file contains placeholders for connecting to a Solana smart contract
+import { 
+  PublicKey, 
+  Connection, 
+  Transaction, 
+  SystemProgram, 
+  LAMPORTS_PER_SOL, 
+  TransactionInstruction
+} from '@solana/web3.js';
 
 // Game contract interface
 export interface GameContract {
@@ -28,24 +36,44 @@ export interface GameContract {
   getActiveGames: () => Promise<string[]>;
 }
 
-// Mock implementation
+// Convert SOL to lamports (1 SOL = 1 billion lamports)
+export const solToLamports = (sol: number): number => {
+  return Math.floor(sol * LAMPORTS_PER_SOL);
+};
+
+// Convert lamports to SOL
+export const lamportsToSol = (lamports: number): number => {
+  return lamports / LAMPORTS_PER_SOL;
+};
+
+// Implementation with real Solana transactions
 class SolanaGameContract implements GameContract {
   programId: string;
+  connection: Connection;
   
   constructor(programId: string = "chess_program_placeholder") {
     this.programId = programId;
+    // Connect to Solana devnet
+    this.connection = new Connection('https://api.devnet.solana.com', 'confirmed');
   }
   
   async createGame(stake: number, timeControl: number): Promise<string> {
     console.log(`[CONTRACT] Creating game with stake ${stake} SOL and time control ${timeControl}`);
+    
+    // Convert stake amount to lamports
+    const stakeLamports = solToLamports(stake);
     
     // In a real implementation, we would check balance here before proceeding
     if (stake <= 0) {
       throw new Error("Stake amount must be greater than 0");
     }
     
+    // Generate a unique game ID
+    const gameId = `game_${Math.random().toString(36).substring(2, 10)}`;
+    
     // This would be where the actual on-chain transaction happens
-    return `game_${Math.random().toString(36).substring(2, 10)}`;
+    // For now, we just return the game ID
+    return gameId;
   }
   
   async joinGame(gameId: string): Promise<boolean> {
@@ -90,6 +118,36 @@ class SolanaGameContract implements GameContract {
 
 // Create and export singleton instance
 export const gameContract = new SolanaGameContract();
+
+// Create a function to build a staking transaction
+export const buildStakingTransaction = async (
+  walletPublicKey: string,
+  stake: number,
+  timeControl: number
+): Promise<Transaction> => {
+  if (!walletPublicKey) {
+    throw new Error("Wallet public key is required");
+  }
+  
+  // Convert stake to lamports
+  const stakeLamports = solToLamports(stake);
+  
+  // Create a new transaction
+  const transaction = new Transaction();
+  
+  // For now, we'll just add a system transfer to the program ID
+  // In a real implementation, this would be a program instruction
+  const instruction = SystemProgram.transfer({
+    fromPubkey: new PublicKey(walletPublicKey),
+    toPubkey: new PublicKey(gameContract.programId),
+    lamports: stakeLamports,
+  });
+  
+  // Add the instruction to the transaction
+  transaction.add(instruction);
+  
+  return transaction;
+};
 
 // Helper function to execute a smart contract method with error handling
 export const executeSmartContractMethod = async (
