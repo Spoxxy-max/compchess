@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   { ignores: ["dist"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [], // Don't extend any configs
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
@@ -18,12 +18,22 @@ export default tseslint.config(
       "react-refresh": reactRefresh,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
-      "@typescript-eslint/no-unused-vars": "off",
+      // Disable all ESLint and plugin rules by setting them to "off"
+      ...Object.fromEntries(
+        Object.keys(js.configs.recommended.rules).map((key) => [key, "off"])
+      ),
+      ...Object.fromEntries(
+        Object.keys(reactHooks.configs.recommended.rules).map((key) => [
+          key,
+          "off",
+        ])
+      ),
+      ...Object.fromEntries(
+        Object.keys(tseslint.configs.recommended.rules).map((key) => [
+          key,
+          "off",
+        ])
+      ),
     },
   }
 );

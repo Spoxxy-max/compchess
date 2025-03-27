@@ -44,7 +44,7 @@ const WalletSelector: React.FC<WalletSelectorProps> = ({ isOpen, onClose }) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-card">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Connect Wallet</DialogTitle>
+          <DialogTitle className="text-xl font-bold">Connect Wallet hel</DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">

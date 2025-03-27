@@ -4,6 +4,8 @@ import { Suspense, StrictMode } from 'react'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
 import App from './App.tsx'
 import './index.css'
+import { WalletAdapter } from './integrations/solana/walletTypes';
+import WalletContext from './providers/WalletContex';
 
 function ErrorFallback({ error }: FallbackProps) {
   return (
@@ -24,7 +26,9 @@ root.render(
   <StrictMode>
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Suspense fallback={<div className="p-4 text-white">Loading...</div>}>
+       <WalletContext>
         <App />
+       </WalletContext>
       </Suspense>
     </ErrorBoundary>
   </StrictMode>
