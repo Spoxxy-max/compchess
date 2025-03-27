@@ -5,7 +5,7 @@ import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
 import App from './App.tsx'
 import './index.css'
 import { WalletAdapter } from './integrations/solana/walletTypes';
-import WalletContext from './providers/WalletContex';
+import WalletContext from './providers/WalletContex'
 
 function ErrorFallback({ error }: FallbackProps) {
   return (

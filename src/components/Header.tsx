@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../integrations/solana/wallet';
-import WalletSelector from './WalletSelector';
-import { Settings, WalletIcon } from 'lucide-react';
+import WalletSelector from './WalletSelector'
+import { Settings, WalletIcon } from 'lucide-react'
 import { ConnectWalletButton } from '@/providers/WalletContex';
 
 interface HeaderProps {
@@ -26,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
   const handleDisconnectWallet = () => {
     disconnectWallet();
   };
-
+// helllo
   // Navigate to the smart contract config page
   const handleSmartContractConfig = () => {
     navigate('/smart-contract');

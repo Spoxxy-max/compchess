@@ -38,7 +38,7 @@ const WalletContext: FC<WalletContextProps> = ({ children }) => {
     ],
     [network]
   );
-
+// hello
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
