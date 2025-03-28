@@ -9,7 +9,8 @@ import { timeControlOptions } from '../utils/chessUtils';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useWallet } from '../integrations/solana/wallet';
+// import { useWallet } from '../integrations/solana/wallet';
+import { useWallet  } from '@solana/wallet-adapter-react';
 
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
@@ -18,9 +19,8 @@ const Index = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [animationComplete, setAnimationComplete] = useState(false);
-  const { wallet, connectWallet } = useWallet();
+  const { wallet } = useWallet();
   
-  const isLoggedIn = wallet?.connected;
 
   // Simulate animation completion
   useEffect(() => {
@@ -30,33 +30,33 @@ const Index = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleNewGame = () => {
-    if (isLoggedIn) {
-      setIsNewGameModalOpen(true);
-    } else {
-      toast({
-        title: "Not Connected",
-        description: "Please connect your wallet to create a game",
-        variant: "destructive",
-      });
-    }
-  };
+  // const handleNewGame = () => {
+  //   if (isLoggedIn) {
+  //     setIsNewGameModalOpen(true);
+  //   } else {
+  //     toast({
+  //       title: "Not Connected",
+  //       description: "Please connect your wallet to create a game",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
 
-  const handleJoinGame = () => {
-    if (isLoggedIn) {
-      setIsJoinGameModalOpen(true);
-    } else {
-      toast({
-        title: "Not Connected",
-        description: "Please connect your wallet to join a game",
-        variant: "destructive",
-      });
-    }
-  };
+  // const handleJoinGame = () => {
+  //   if (isLoggedIn) {
+  //     setIsJoinGameModalOpen(true);
+  //   } else {
+  //     toast({
+  //       title: "Not Connected",
+  //       description: "Please connect your wallet to join a game",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
 
-  const handleConnectWallet = () => {
-    connectWallet();
-  };
+  // const handleConnectWallet = () => {
+  //   connectWallet();
+  // };
 
   const handleCreateGame = (timeControl: TimeControl, stake: number) => {
     navigate('/game/new', { 
@@ -89,8 +89,8 @@ const Index = () => {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(9,9,11,0.1)_0.1px,transparent_0.1px),linear-gradient(to_right,rgba(9,9,11,0.1)_0.1px,transparent_0.1px)] bg-[size:24px_24px] opacity-20" />
       
       <Header 
-        onNewGame={handleNewGame}
-        onJoinGame={handleJoinGame}
+        // onNewGame={handleNewGame}
+        // onJoinGame={handleJoinGame}
       />
       
       <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
@@ -109,7 +109,7 @@ const Index = () => {
             <div className="space-y-5">
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
-                  onClick={handleNewGame}
+                  // onClick={handleNewGame}
                   className="bg-solana hover:bg-solana-dark text-white px-6 py-6 sm:px-8 text-base sm:text-lg relative group overflow-hidden"
                   size="lg"
                 >
@@ -117,7 +117,7 @@ const Index = () => {
                   <span className="absolute inset-0 h-full w-0 bg-white/20 transition-all duration-300 group-hover:w-full"></span>
                 </Button>
                 <Button 
-                  onClick={handleJoinGame}
+                  // onClick={handleJoinGame}
                   variant="outline"
                   className="px-6 py-6 sm:px-8 text-base sm:text-lg border-2 hover:bg-card/80 transition-all duration-300"
                   size="lg"
@@ -125,7 +125,7 @@ const Index = () => {
                   Join Game
                 </Button>
               </div>
-              {!isLoggedIn && (
+              {/* {!isLoggedIn && (
                 <p className="text-sm text-gray-400 mt-2 flex items-center gap-2">
                   <span className="inline-block w-2 h-2 bg-solana rounded-full animate-pulse"></span>
                   <Button 
@@ -137,7 +137,7 @@ const Index = () => {
                   </Button>
                   to create or join games with stakes
                 </p>
-              )}
+              )} */}
             </div>
           </div>
           
