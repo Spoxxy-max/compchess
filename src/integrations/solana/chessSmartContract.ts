@@ -1,5 +1,4 @@
-
-import { executeSmartContractMethod } from './smartContract';
+import { executeSmartContractMethod, buildStakingTransaction, solToLamports, lamportsToSol } from './smartContract';
 import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js';
 import { ChessErrorCode, ChessGameAccount, GameStatus } from './walletTypes';
 
@@ -85,12 +84,13 @@ export interface ChessGameContract {
 // Implementation of the contract using the IDL
 export const chessGameContract: ChessGameContract = {
   createGame: async (stake: number, timeControl: number) => {
-    console.log(`Creating game with stake ${stake} SOL and time control ${timeControl}`);
+    const stakeLamports = solToLamports(stake);
+    console.log(`Creating game with stake ${stake} SOL (${stakeLamports} lamports) and time control ${timeControl}`);
     try {
       if (!programId) throw new Error("Program ID not initialized");
       
       // This will be implemented with actual Solana program call
-      const result = await executeSmartContractMethod('createGame', [stake, timeControl]);
+      const result = await executeSmartContractMethod('createGame', [stakeLamports, timeControl]);
       
       if (!result.success) {
         throw new Error(result.error?.message || "Failed to create game");
@@ -107,7 +107,8 @@ export const chessGameContract: ChessGameContract = {
   },
   
   joinGame: async (gameId: string, stake: number) => {
-    console.log(`Joining game ${gameId} with stake ${stake} SOL`);
+    const stakeLamports = solToLamports(stake);
+    console.log(`Joining game ${gameId} with stake ${stake} SOL (${stakeLamports} lamports)`);
     try {
       if (!programId) throw new Error("Program ID not initialized");
       
@@ -223,6 +224,20 @@ export const chessGameContract: ChessGameContract = {
     // This would query all games by pubkey
     // For now, we'll return a mock game ID
     return [`game_${Math.random().toString(36).substring(2, 10)}`];
+  }
+};
+
+// Create transaction for staking - making sure it's properly exported
+export const createStakingTransaction = async (walletPublicKey: string, stake: number, timeControl: number): Promise<Transaction> => {
+  if (!walletPublicKey) {
+    throw new Error("Wallet public key is required");
+  }
+  
+  try {
+    return await buildStakingTransaction(walletPublicKey, stake, timeControl);
+  } catch (error) {
+    console.error('Error creating staking transaction:', error);
+    throw error;
   }
 };
 

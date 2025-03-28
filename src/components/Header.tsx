@@ -17,21 +17,6 @@ const Header: React.FC<HeaderProps> = ({ onNewGame, onJoinGame }) => {
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Handle wallet connect button click
-  const handleConnectWallet = () => {
-    setIsWalletSelectorOpen(true);
-  };
-
-  // Handle wallet disconnect button click
-  const handleDisconnectWallet = () => {
-    disconnectWallet();
-  };
-// helllo
-  // Navigate to the smart contract config page
-  const handleSmartContractConfig = () => {
-    navigate('/smart-contract');
-  };
-
   // Navigate to home
   const handleNavigateHome = () => {
     navigate('/');

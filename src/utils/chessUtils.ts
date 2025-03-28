@@ -400,7 +400,7 @@ export const formatTime = (seconds: number): string => {
 };
 
 export const timeControlOptions: TimeControl[] = [
-  { type: 'blitz' as TimeControlOption, startTime: 3 * 60, increment: 2, label: 'Blitz - 3+2' },
+  { type: 'blitz' as TimeControlOption, startTime: 3 * 60, increment: 0, label: 'Blitz - 3+2' },
   { type: 'rapid' as TimeControlOption, startTime: 10 * 60, increment: 5, label: 'Rapid - 10+5' },
   { type: 'classical' as TimeControlOption, startTime: 30 * 60, increment: 30, label: 'Classical - 30+30' },
   { type: 'custom' as TimeControlOption, startTime: 5 * 60, increment: 3, label: 'Custom' },

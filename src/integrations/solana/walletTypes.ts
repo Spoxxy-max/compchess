@@ -1,5 +1,5 @@
 
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Transaction } from '@solana/web3.js';
 
 // Wallet adapter interface
 export interface WalletAdapter {
@@ -10,6 +10,7 @@ export interface WalletAdapter {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   signTransaction?: (transaction: any) => Promise<any>;
+  sendTransaction?: (transaction: Transaction) => Promise<string>;
   signAllTransactions?: (transactions: any[]) => Promise<any[]>;
   signMessage?: (message: Uint8Array) => Promise<{ signature: Uint8Array }>;
 }

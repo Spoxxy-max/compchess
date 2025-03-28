@@ -1,42 +1,110 @@
 
 import { BaseWalletAdapter } from './BaseWalletAdapter';
+import { PublicKey, Transaction, Connection } from '@solana/web3.js';
 
 export class SolflareWalletAdapter extends BaseWalletAdapter {
   walletName = 'Solflare';
-
+  
   async connect(): Promise<void> {
     try {
-      // Check if Solflare wallet is installed
-      const isSolflareInstalled = window.solflare;
-      
-      if (!isSolflareInstalled) {
-        throw new Error('Solflare wallet is not installed');
+      if (!window.solflare) {
+        throw new Error('Solflare wallet not found');
       }
-
-      // Connect to the wallet
+      
+      // Request connection
       await window.solflare.connect();
-      this.publicKey = window.solflare.publicKey?.toString() || null;
+      
+      this.publicKey = window.solflare.publicKey?.toString() || '';
       this.connected = true;
       
-      // Fetch real balance
-      await this.fetchBalance();
+      // Get wallet balance
+      this.balance = await this.getBalance(this.publicKey);
       
-      console.log('Solflare wallet connected:', this.publicKey);
+      console.log(`Solflare wallet connected: ${this.publicKey}`);
     } catch (error) {
-      console.error('Error connecting Solflare wallet:', error);
+      console.error('Error connecting to Solflare wallet:', error);
       throw error;
     }
   }
-
+  
   async disconnect(): Promise<void> {
     try {
-      await window.solflare?.disconnect();
-      this.publicKey = null;
-      this.connected = false;
-      this.balance = 0;
-      console.log('Solflare wallet disconnected');
+      if (window.solflare && this.connected) {
+        await window.solflare.disconnect();
+        this.publicKey = null;
+        this.connected = false;
+        this.balance = 0;
+        
+        console.log('Solflare wallet disconnected');
+      }
     } catch (error) {
-      console.error('Error disconnecting Solflare wallet:', error);
+      console.error('Error disconnecting from Solflare wallet:', error);
+      throw error;
+    }
+  }
+  
+  async signTransaction(transaction: Transaction): Promise<Transaction> {
+    try {
+      if (!window.solflare || !this.connected) {
+        throw new Error('Solflare wallet not connected');
+      }
+      
+      const signedTransaction = await window.solflare.signTransaction(transaction);
+      return signedTransaction;
+    } catch (error) {
+      console.error('Error signing transaction with Solflare wallet:', error);
+      throw error;
+    }
+  }
+  
+  async sendTransaction(transaction: Transaction): Promise<string> {
+    try {
+      if (!window.solflare || !this.connected) {
+        throw new Error('Solflare wallet not connected');
+      }
+      
+      // Try to use signAndSendTransaction if available
+      if (window.solflare.signAndSendTransaction) {
+        const signature = await window.solflare.signAndSendTransaction(transaction);
+        // Handle the signature which could be a string directly or an object with a signature property
+        return typeof signature === 'string' ? signature : '';
+      }
+      
+      // Fallback: manually sign and send the transaction
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      const signedTransaction = await this.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      return signature;
+    } catch (error) {
+      console.error('Error sending transaction with Solflare wallet:', error);
+      throw error;
+    }
+  }
+  
+  async signAllTransactions(transactions: Transaction[]): Promise<Transaction[]> {
+    try {
+      if (!window.solflare || !this.connected) {
+        throw new Error('Solflare wallet not connected');
+      }
+      
+      const signedTransactions = await window.solflare.signAllTransactions(transactions);
+      return signedTransactions;
+    } catch (error) {
+      console.error('Error signing all transactions with Solflare wallet:', error);
+      throw error;
+    }
+  }
+  
+  async signMessage(message: Uint8Array): Promise<{ signature: Uint8Array }> {
+    try {
+      if (!window.solflare || !this.connected) {
+        throw new Error('Solflare wallet not connected');
+      }
+      
+      const signature = await window.solflare.signMessage(message);
+      return signature;
+    } catch (error) {
+      console.error('Error signing message with Solflare wallet:', error);
       throw error;
     }
   }

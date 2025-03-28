@@ -2,7 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useWallet, WalletType } from '../integrations/solana/wallet';
-import { AlertCircle, WalletIcon } from 'lucide-react';
+import { AlertCircle, WalletIcon, Smartphone } from 'lucide-react';
 
 interface WalletSelectorProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface WalletSelectorProps {
 
 const WalletSelector: React.FC<WalletSelectorProps> = ({ isOpen, onClose }) => {
   const { connectWallet, availableWallets, connecting } = useWallet();
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
   // Wallet brands and their corresponding styling
   const walletStyles: Record<WalletType, { bg: string, border: string, iconColor: string }> = {
@@ -40,6 +41,19 @@ const WalletSelector: React.FC<WalletSelectorProps> = ({ isOpen, onClose }) => {
     );
   };
 
+  // Always show these wallet options on mobile
+  const mobileWalletOptions = [
+    { type: 'phantom' as WalletType, name: 'Phantom' },
+    { type: 'solflare' as WalletType, name: 'Solflare' },
+    { type: 'trustwallet' as WalletType, name: 'Trust Wallet' },
+    { type: 'backpack' as WalletType, name: 'Backpack' },
+  ];
+
+  // Use available wallets for desktop, or the predefined list for mobile
+  const walletsToShow = isMobile 
+    ? mobileWalletOptions
+    : (availableWallets.length > 0 ? availableWallets : mobileWalletOptions);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-card">
@@ -48,26 +62,25 @@ const WalletSelector: React.FC<WalletSelectorProps> = ({ isOpen, onClose }) => {
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
-          {availableWallets.length > 0 ? (
-            availableWallets.map(wallet => (
-              <Button
-                key={wallet.type}
-                variant="outline"
-                className={`flex justify-start items-center gap-3 p-4 h-auto hover:bg-secondary/50 border ${walletStyles[wallet.type]?.border || 'border-border'}`}
-                onClick={() => handleSelectWallet(wallet.type)}
-                disabled={connecting}
-              >
-                {getWalletIcon(wallet.type)}
-                <span className="font-medium">{wallet.name}</span>
-              </Button>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 text-muted-foreground">
-              <AlertCircle className="w-10 h-10" />
-              <p>No Solana wallets detected in your browser</p>
-              <p className="text-sm">Please install a Solana wallet extension like Phantom or Solflare</p>
+          {isMobile && (
+            <div className="mb-2 p-2 bg-amber-500/10 rounded-md flex items-center gap-2 text-amber-500 text-sm">
+              <Smartphone className="w-4 h-4" />
+              <span>You'll be redirected to your wallet app</span>
             </div>
           )}
+          
+          {walletsToShow.map(wallet => (
+            <Button
+              key={wallet.type}
+              variant="outline"
+              className={`flex justify-start items-center gap-3 p-4 h-auto hover:bg-secondary/50 border ${walletStyles[wallet.type]?.border || 'border-border'}`}
+              onClick={() => handleSelectWallet(wallet.type)}
+              disabled={connecting}
+            >
+              {getWalletIcon(wallet.type)}
+              <span className="font-medium">{wallet.name}</span>
+            </Button>
+          ))}
         </div>
         
         <div className="text-xs text-muted-foreground text-center pt-2">
