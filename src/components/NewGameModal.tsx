@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useWallet } from '../integrations/solana/wallet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
