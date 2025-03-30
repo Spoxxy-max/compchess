@@ -58,11 +58,11 @@ const ConnectWalletButton = () => {
           : "Connect Wallet"}
       </WalletMultiButton>
 
-      {connected && (
+      {/* {connected && (
         <button onClick={disconnect} className="wallet-disconnect-button">
           Disconnect
         </button>
-      )}
+      )} */}
     </div>
   );
 };
