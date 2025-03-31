@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import NewGameModal from '../components/NewGameModal';
+import StakeConfirmationModal from '../components/StakeConfirmationModal'; // Import the StakeConfirmationModal
 import JoinGameModal from '../components/JoinGameModal';
 import TournamentPlaceholder from '../components/TournamentPlaceholder';
-import { TimeControl, TimeControlOption } from '../utils/chessTypes';
+import { TimeControl } from '../utils/chessTypes';
 import { timeControlOptions } from '../utils/chessUtils';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +14,10 @@ import { useWallet  } from '@solana/wallet-adapter-react';
 
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
+  const [isStakeConfirmationModalOpen, setIsStakeConfirmationModalOpen] = useState(false); // State for StakeConfirmationModal
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
+  const [stakeAmount, setStakeAmount] = useState(0); // State for stake amount
+  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(null); // State for selected time control
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -53,25 +57,36 @@ const Index = () => {
     }
   };
 
- 
+  const handleCloseStakeConfirmationModal = () => {
+    setIsStakeConfirmationModalOpen(false);
+  };
 
   const handleCreateGame = (timeControl: TimeControl, stake: number) => {
-    navigate('/game/new', { 
-      state: { 
-        timeControl, 
-        stake, 
-        playerColor: 'white' 
-      } 
+    setStakeAmount(stake); // Store the stake amount
+    setSelectedTimeControl(timeControl); // Store the time control
+    setIsNewGameModalOpen(false); // Close the NewGameModal
+    setIsStakeConfirmationModalOpen(true); // Open the StakeConfirmationModal
+  };
+
+  const handleConfirmStake = () => {
+    // Navigate to the game route with the stake and time control
+    navigate('/game/new', {
+      state: {
+        timeControl: selectedTimeControl,
+        stake: stakeAmount,
+        playerColor: 'white',
+      },
     });
+    setIsStakeConfirmationModalOpen(false); // Close the StakeConfirmationModal
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
-    navigate(`/game/${gameId}`, { 
-      state: { 
+    navigate(`/game/${gameId}`, {
+      state: {
         timeControl,
         stake,
-        playerColor: 'black' 
-      } 
+        playerColor: 'black'
+      }
     });
   };
 
@@ -135,7 +150,7 @@ const Index = () => {
                   Join Game
                 </Button>
               </div>
-            
+
             </div>
           </div>
 
@@ -225,6 +240,14 @@ const Index = () => {
         isOpen={isNewGameModalOpen}
         onClose={() => setIsNewGameModalOpen(false)}
         onCreateGame={handleCreateGame}
+      />
+
+      <StakeConfirmationModal // Add the StakeConfirmationModal
+        isOpen={isStakeConfirmationModalOpen}
+        onClose={handleCloseStakeConfirmationModal}
+        onConfirm={handleConfirmStake}
+        stake={stakeAmount}
+        timeControl={`${selectedTimeControl?.startTime} + ${selectedTimeControl?.increment}` || ''} // Format timeControl
       />
 
       <JoinGameModal

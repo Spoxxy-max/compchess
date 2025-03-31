@@ -88,7 +88,7 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
   // Format small stake amounts with more precision
   const formatStakeAmount = (amount: number) => {
     if (amount === 0) return '0';
-    if (amount < 0.001) return amount.toFixed(4);
+    if (amount < 0.008) return amount.toFixed(4);
     return amount.toFixed(3);
   };
 
