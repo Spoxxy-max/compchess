@@ -143,7 +143,7 @@ export const buildStakingTransaction = async (
     // In a real implementation, this would be a program instruction
     const instruction = SystemProgram.transfer({
       fromPubkey: fromPubkey,
-      toPubkey: new PublicKey("ChessGameProgramPlaceholder111111111111111111111"),
+      toPubkey: new PublicKey("6RDE3PtriqkHpSfH4QdGQtZ7Ud7j3Tg4PipBEWrBmM6B"),
       lamports: stakeLamports,
     });
     
