@@ -20,7 +20,8 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
   const { wallet } = useWallet();
   const { toast } = useToast();
   
-  const MIN_STAKE = 0.0001; // Minimum stake amount in SOL (0.0001 SOL = 100,000 lamports)
+  
+  const MIN_STAKE = 0.008; // Minimum stake amount in SOL (0.0001 SOL = 100,000 lamports)
   const MAX_STAKE = 100; // Maximum stake amount in SOL
 
   const handleCreateGame = () => {
@@ -53,6 +54,10 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
     setSelectedTimeControl(timeControl);
   };
 
+  // Handle stake input changes
+  // Ensure the stake amount is a valid number and within the specified range
+  // If the input is invalid, set it to 0
+  // If the input exceeds the maximum stake, show a toast notification
   const handleStakeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
     
@@ -119,11 +124,11 @@ const NewGameModal: React.FC<NewGameModalProps> = ({ isOpen, onClose, onCreateGa
             <div className="space-y-3">
               <Input
                 type="number"
-                value={stakeAmount === 0 ? '' : stakeAmount}
+                value={stakeAmount}
                 onChange={handleStakeInput}
                 min={MIN_STAKE}
                 max={MAX_STAKE}
-                step={0.0001}
+                step={0.008}
                 placeholder="Enter stake amount"
                 className="w-full"
               />
