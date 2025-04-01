@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import NewGameModal from '../components/NewGameModal';
-import StakeConfirmationModal from '../components/StakeConfirmationModal'; // Import the StakeConfirmationModal
+import StakeConfirmationModal from '../components/StakeConfirmationModal';
 import JoinGameModal from '../components/JoinGameModal';
 import TournamentPlaceholder from '../components/TournamentPlaceholder';
 import { TimeControl } from '../utils/chessTypes';
@@ -14,10 +14,10 @@ import { useWallet  } from '@solana/wallet-adapter-react';
 
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
-  const [isStakeConfirmationModalOpen, setIsStakeConfirmationModalOpen] = useState(false); // State for StakeConfirmationModal
+  const [isStakeConfirmationModalOpen, setIsStakeConfirmationModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
-  const [stakeAmount, setStakeAmount] = useState(0); // State for stake amount
-  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(null); // State for selected time control
+  const [stakeAmount, setStakeAmount] = useState(0);
+  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -25,7 +25,6 @@ const Index = () => {
   const { wallet } = useWallet();
 
   const isLoggedIn = wallet?.adapter.connected
-  // Simulate animation completion
   useEffect(() => {
     const timer = setTimeout(() => {
       setAnimationComplete(true);
@@ -62,14 +61,13 @@ const Index = () => {
   };
 
   const handleCreateGame = (timeControl: TimeControl, stake: number) => {
-    setStakeAmount(stake); // Store the stake amount
-    setSelectedTimeControl(timeControl); // Store the time control
-    setIsNewGameModalOpen(false); // Close the NewGameModal
-    setIsStakeConfirmationModalOpen(true); // Open the StakeConfirmationModal
+    setStakeAmount(stake);
+    setSelectedTimeControl(timeControl);
+    setIsNewGameModalOpen(false);
+    setIsStakeConfirmationModalOpen(true);
   };
 
   const handleConfirmStake = () => {
-    // Navigate to the game route with the stake and time control
     navigate('/game/new', {
       state: {
         timeControl: selectedTimeControl,
@@ -77,7 +75,7 @@ const Index = () => {
         playerColor: 'white',
       },
     });
-    setIsStakeConfirmationModalOpen(false); // Close the StakeConfirmationModal
+    setIsStakeConfirmationModalOpen(false);
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
@@ -90,9 +88,13 @@ const Index = () => {
     });
   };
 
+  const formatTimeControl = (timeControl: TimeControl | null) => {
+    if (!timeControl) return '';
+    return `${timeControl.startTime} + ${timeControl.increment}`;
+  };
+
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden bg-background">
-      {/* Background glow effects for futuristic look */}
       <div className="absolute -top-20 -left-20 w-96 h-96 bg-solana/20 rounded-full blur-[120px] animate-pulse" />
       <div
         className="absolute top-40 -right-20 w-72 h-72 bg-solana/30 rounded-full blur-[100px] animate-pulse"
@@ -103,7 +105,6 @@ const Index = () => {
         style={{ animationDelay: "2s" }}
       />
 
-      {/* Grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(9,9,11,0.1)_0.1px,transparent_0.1px),linear-gradient(to_right,rgba(9,9,11,0.1)_0.1px,transparent_0.1px)] bg-[size:24px_24px] opacity-20" />
 
       <Header
@@ -150,7 +151,6 @@ const Index = () => {
                   Join Game
                 </Button>
               </div>
-
             </div>
           </div>
 
@@ -242,12 +242,13 @@ const Index = () => {
         onCreateGame={handleCreateGame}
       />
 
-      <StakeConfirmationModal // Add the StakeConfirmationModal
+      <StakeConfirmationModal
         isOpen={isStakeConfirmationModalOpen}
         onClose={handleCloseStakeConfirmationModal}
         onConfirm={handleConfirmStake}
         stake={stakeAmount}
-        timeControl={`${selectedTimeControl?.startTime} + ${selectedTimeControl?.increment}` || ''} // Format timeControl
+        timeControl={formatTimeControl(selectedTimeControl)}
+        timeControlObject={selectedTimeControl}
       />
 
       <JoinGameModal

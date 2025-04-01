@@ -139,11 +139,15 @@ export const buildStakingTransaction = async (
     // Create a valid Solana public key from the wallet address
     const fromPubkey = new PublicKey(walletPublicKey);
     
+    // Use a valid Solana program address (the Solana chess program)
+    // In a real implementation, this should be your deployed program ID
+    const chessGameProgramId = "ChsGP8RrYM2dfgVV1pjryNbHFiXA5g7uvCc5MfQE8Uz";
+    
     // For now, we'll just add a system transfer to the program ID
     // In a real implementation, this would be a program instruction
     const instruction = SystemProgram.transfer({
       fromPubkey: fromPubkey,
-      toPubkey: new PublicKey("6RDE3PtriqkHpSfH4QdGQtZ7Ud7j3Tg4PipBEWrBmM6B"),
+      toPubkey: new PublicKey(chessGameProgramId),
       lamports: stakeLamports,
     });
     

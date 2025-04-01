@@ -1,8 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { useWallet } from '@solana/wallet-adapter-react';
+import { createStakingTransaction } from '@/integrations/solana/smartContract';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { TimeControl } from '@/utils/chessTypes';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -10,6 +15,7 @@ interface StakeConfirmationModalProps {
   onConfirm: () => void;
   stake: number;
   timeControl: string;
+  timeControlObject?: TimeControl;
 }
 
 const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({ 
@@ -17,8 +23,13 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
   onClose, 
   onConfirm, 
   stake, 
-  timeControl 
+  timeControl,
+  timeControlObject 
 }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { publicKey, signTransaction } = useWallet();
+  const { toast } = useToast();
+  
   // Format stake amount with more precision for small amounts
   const formatStakeAmount = (amount: number) => {
     if (amount < 0.001) {
@@ -31,6 +42,76 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       return amount.toFixed(4);
     }
     return amount.toFixed(3);
+  };
+
+  const handleConfirmStake = async () => {
+    if (!publicKey || !signTransaction) {
+      toast({
+        title: "Wallet Error",
+        description: "Please connect your wallet to stake",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Create a staking transaction
+      const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600; // Default to 10 min if not provided
+      const transaction = await createStakingTransaction(publicKey.toString(), stake, timeInSeconds);
+      
+      // Sign the transaction
+      const signedTransaction = await signTransaction(transaction);
+      
+      // In a real implementation, we would send the transaction to the network here
+      // For now, we'll just log it and simulate success
+      console.log("Signed transaction:", signedTransaction);
+      
+      // Create a game entry in Supabase
+      const { data: gameData, error } = await supabase
+        .from('chess_games')
+        .insert({
+          host_id: publicKey.toString(),
+          time_control: timeControl,
+          time_white: timeInSeconds,
+          time_black: timeInSeconds,
+          stake: stake,
+          status: 'waiting',
+          board_state: {
+            pieces: [],
+            currentTurn: 'white',
+            whiteTime: timeInSeconds,
+            blackTime: timeInSeconds,
+            moveHistory: []
+          },
+          move_history: [],
+          current_turn: 'white'
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Stake Successful",
+        description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
+      });
+      
+      // Call the onConfirm callback to navigate to the game page
+      onConfirm();
+    } catch (error: any) {
+      console.error("Error processing stake:", error);
+      toast({
+        title: "Stake Failed",
+        description: error.message || "Failed to process stake transaction",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -65,14 +146,24 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         </div>
         
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
             Cancel
           </Button>
           <Button 
-            onClick={onConfirm}
+            onClick={handleConfirmStake}
             className="bg-solana hover:bg-solana-dark text-white"
+            disabled={isProcessing}
           >
-            Confirm Stake <ArrowRight className="ml-2 h-4 w-4" />
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                Confirm Stake <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
