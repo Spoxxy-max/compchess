@@ -136,12 +136,15 @@ export const buildStakingTransaction = async (
   const transaction = new Transaction();
   
   try {
+    console.log("Building transaction with wallet:", walletPublicKey);
+    
     // Create a valid Solana public key from the wallet address
     const fromPubkey = new PublicKey(walletPublicKey);
     
-    // Use a hardcoded, but valid Solana public key format for the program
+    // Use a valid Solana base58 encoded public key for the program
     // In production, this would be your real deployed program ID
-    const chessGameProgramId = new PublicKey("9876543210987654321098765432109876543210");
+    // This is a properly formatted Solana address that will work for testing
+    const chessGameProgramId = new PublicKey("11111111111111111111111111111111");
     
     // Add a system transfer instruction to the transaction
     const instruction = SystemProgram.transfer({
