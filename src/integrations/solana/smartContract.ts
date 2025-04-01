@@ -1,3 +1,4 @@
+
 // This file contains placeholders for connecting to a Solana smart contract
 import { 
   PublicKey, 
@@ -138,9 +139,9 @@ export const buildStakingTransaction = async (
     // Create a valid Solana public key from the wallet address
     const fromPubkey = new PublicKey(walletPublicKey);
     
-    // Use a valid Solana public key for the program ID
-    // This is a valid Solana address format that will work for testing
-    const chessGameProgramId = new PublicKey("Chess1111111111111111111111111111111111111111");
+    // Use a hardcoded, but valid Solana public key format for the program
+    // In production, this would be your real deployed program ID
+    const chessGameProgramId = new PublicKey("9876543210987654321098765432109876543210");
     
     // Add a system transfer instruction to the transaction
     const instruction = SystemProgram.transfer({

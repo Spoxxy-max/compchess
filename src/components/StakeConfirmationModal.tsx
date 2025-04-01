@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { createStakingTransaction } from '@/integrations/solana/smartContract';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
-import { Connection } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -31,7 +30,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
   const { publicKey, signTransaction } = useWallet();
   const { toast } = useToast();
   
-  // Format stake amount with more precision for small amounts
   const formatStakeAmount = (amount: number) => {
     if (amount < 0.001) {
       return amount.toFixed(6);
@@ -57,31 +55,31 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
 
     try {
       setIsProcessing(true);
+      console.log("Starting transaction process with wallet:", publicKey.toString());
       
-      // Create a connection to Solana devnet
       const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
       
-      // Create a staking transaction
       const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600; // Default to 10 min if not provided
       const transaction = await createStakingTransaction(publicKey.toString(), stake, timeInSeconds);
       
-      // Get a recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
       
-      // Sign the transaction
+      console.log("Transaction created, signing now...");
+      
       const signedTransaction = await signTransaction(transaction);
       
-      // Send the transaction to the network
+      console.log("Transaction signed, sending to network...");
+      
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
       
-      // Wait for transaction confirmation
+      console.log("Transaction sent with signature:", signature);
+      
       await connection.confirmTransaction(signature, 'confirmed');
       
       console.log("Transaction confirmed with signature:", signature);
       
-      // Create a game entry in Supabase
       const { data: gameData, error } = await supabase
         .from('chess_games')
         .insert({
@@ -113,7 +111,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
       });
       
-      // Call the onConfirm callback to navigate to the game page
       onConfirm();
     } catch (error: any) {
       console.error("Error processing stake:", error);
