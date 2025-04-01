@@ -144,7 +144,7 @@ export const buildStakingTransaction = async (
     // Use a valid Solana base58 encoded public key for the program
     // In production, this would be your real deployed program ID
     // This is a properly formatted Solana address that will work for testing
-    const chessGameProgramId = new PublicKey("11111111111111111111111111111111");
+    const chessGameProgramId = new PublicKey("6RDE3PtriqkHpSfH4QdGQtZ7Ud7j3Tg4PipBEWrBmM6B");
     
     // Add a system transfer instruction to the transaction
     const instruction = SystemProgram.transfer({

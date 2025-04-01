@@ -200,7 +200,7 @@ export const chessGameContract: ChessGameContract = {
       // This would fetch the account data from the Solana blockchain
       // For now, we'll return a mock account
       return {
-        host: new PublicKey("11111111111111111111111111111111"),
+        host: new PublicKey("6RDE3PtriqkHpSfH4QdGQtZ7Ud7j3Tg4PipBEWrBmM6B"),
         opponent: null,
         stake: 1,
         timeControl: 300,
