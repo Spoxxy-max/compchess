@@ -8,6 +8,7 @@ import { createStakingTransaction } from '@/integrations/solana/smartContract';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
+import { Connection } from '@solana/web3.js';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -57,16 +58,28 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
     try {
       setIsProcessing(true);
       
+      // Create a connection to Solana devnet
+      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      
       // Create a staking transaction
       const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600; // Default to 10 min if not provided
       const transaction = await createStakingTransaction(publicKey.toString(), stake, timeInSeconds);
       
+      // Get a recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+      
       // Sign the transaction
       const signedTransaction = await signTransaction(transaction);
       
-      // In a real implementation, we would send the transaction to the network here
-      // For now, we'll just log it and simulate success
-      console.log("Signed transaction:", signedTransaction);
+      // Send the transaction to the network
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      
+      // Wait for transaction confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      console.log("Transaction confirmed with signature:", signature);
       
       // Create a game entry in Supabase
       const { data: gameData, error } = await supabase
