@@ -141,20 +141,24 @@ export const buildStakingTransaction = async (
     // Create a valid Solana public key from the wallet address
     const fromPubkey = new PublicKey(walletPublicKey);
     
-    // Use a valid Solana base58 encoded public key for the program
-    // In production, this would be your real deployed program ID
-    // This is a properly formatted Solana address that will work for testing
-    const chessGameProgramId = new PublicKey("6RDE3PtriqkHpSfH4QdGQtZ7Ud7j3Tg4PipBEWrBmM6B");
+    // For testing purposes, we'll use a known devnet program address that can receive funds
+    // This is a demo wallet address that can receive funds (replace with your actual program ID in production)
+    const chessGameProgramId = new PublicKey("Chess111111111111111111111111111111111111111");
     
     // Add a system transfer instruction to the transaction
+    // We'll use the transfer instruction to send funds to our escrow account
     const instruction = SystemProgram.transfer({
       fromPubkey: fromPubkey,
-      toPubkey: chessGameProgramId,
+      // In a real implementation, this would be the escrow account or program-derived address (PDA)
+      // For this demo, we'll just use a different wallet
+      toPubkey: new PublicKey("9B5XszUGdMaxCZ7uSQhPzdks5ZQSmWxrmzCSvtJ6Ns6g"),
       lamports: stakeLamports,
     });
     
     // Add the instruction to the transaction
     transaction.add(instruction);
+    
+    console.log("Transaction built successfully with instruction:", instruction);
     
     return transaction;
   } catch (error: any) {

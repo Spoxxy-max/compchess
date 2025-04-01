@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { createStakingTransaction } from '@/integrations/solana/smartContract';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, sendAndConfirmTransaction } from '@solana/web3.js';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -57,29 +58,46 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       setIsProcessing(true);
       console.log("Starting transaction process with wallet:", publicKey.toString());
       
+      // Connect to Solana devnet
       const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
       
+      // Get the time control in seconds
       const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600; // Default to 10 min if not provided
+      
+      console.log("Creating transaction with stake:", stake, "SOL and time control:", timeInSeconds, "seconds");
+      
+      // Create the transaction
       const transaction = await createStakingTransaction(publicKey.toString(), stake, timeInSeconds);
       
-      const { blockhash } = await connection.getLatestBlockhash();
+      // Get a recent blockhash and set it on the transaction
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
       
-      console.log("Transaction created, signing now...");
+      console.log("Transaction created with blockhash:", blockhash);
+      console.log("Signing transaction now...");
       
+      // Sign the transaction
       const signedTransaction = await signTransaction(transaction);
       
-      console.log("Transaction signed, sending to network...");
+      console.log("Transaction signed successfully. Sending to network...");
       
+      // Send the signed transaction to the Solana network
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
       
       console.log("Transaction sent with signature:", signature);
       
-      await connection.confirmTransaction(signature, 'confirmed');
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       
-      console.log("Transaction confirmed with signature:", signature);
+      if (confirmation.value.err) {
+        console.error("Transaction confirmed but has errors:", confirmation.value.err);
+        throw new Error(`Transaction confirmed but has errors: ${JSON.stringify(confirmation.value.err)}`);
+      }
       
+      console.log("Transaction confirmed successfully:", confirmation);
+      
+      // Create a new game in the database
       const { data: gameData, error } = await supabase
         .from('chess_games')
         .insert({
@@ -103,8 +121,11 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         .single();
       
       if (error) {
+        console.error("Error creating game in database:", error);
         throw error;
       }
+      
+      console.log("Game created successfully in database:", gameData);
       
       toast({
         title: "Stake Successful",
@@ -114,9 +135,19 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       onConfirm();
     } catch (error: any) {
       console.error("Error processing stake:", error);
+      
+      // Get more detailed error information when available
+      let errorMessage = error.message || "Failed to process stake transaction";
+      
+      // Check for specific Solana error types
+      if (error.logs) {
+        console.error("Transaction logs:", error.logs);
+        errorMessage = `${errorMessage}. Error details: ${error.logs.join(' ')}`;
+      }
+      
       toast({
         title: "Stake Failed",
-        description: error.message || "Failed to process stake transaction",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
