@@ -58,6 +58,8 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
     try {
       setIsProcessing(true);
       console.log("Starting join transaction process with wallet:", publicKey.toString());
+      console.log("Game ID for joining:", gameId);
+      console.log("Stake amount:", stake, "SOL");
       
       // Connect to Solana devnet
       const connection = new Connection('https://api.devnet.solana.com', 'confirmed');

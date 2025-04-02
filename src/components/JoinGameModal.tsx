@@ -56,6 +56,8 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
     if (selectedGameId) {
       const game = availableGames.find(game => game.id === selectedGameId);
       if (game) {
+        console.log("Selected game for joining:", game);
+        
         // Find the matching time control option or create a custom one
         const timeControlOption = timeControlOptions.find(
           option => option.type === game.time_control
@@ -66,6 +68,9 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
           label: `Custom - ${Math.floor(game.time_white / 60)}:${String(game.time_white % 60).padStart(2, '0')}`
         };
         
+        console.log("Time control for game:", timeControlOption);
+        console.log("Stake amount for game:", game.stake);
+        
         setSelectedGame(game);
         setSelectedTimeControl(timeControlOption);
         setIsStakeConfirmationOpen(true);
@@ -74,13 +79,23 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   };
 
   const handleConfirmStake = async (gameId: string) => {
-    if (!publicKey || !selectedGame) return;
+    if (!publicKey || !selectedGame || !selectedTimeControl) {
+      console.error("Missing required data to join game:", {
+        hasPublicKey: !!publicKey,
+        hasSelectedGame: !!selectedGame,
+        hasTimeControl: !!selectedTimeControl
+      });
+      return;
+    }
     
     try {
+      console.log("Confirming stake to join game:", gameId);
+      
       // Join the game in Supabase
       const joined = await joinGame(gameId, publicKey.toString());
       
-      if (joined && selectedTimeControl) {
+      if (joined) {
+        console.log("Successfully joined game in database");
         onJoinGame(gameId, selectedGame.stake, selectedTimeControl);
         setIsStakeConfirmationOpen(false);
         onClose();

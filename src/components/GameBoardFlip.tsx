@@ -15,9 +15,9 @@ const GameBoardFlip: React.FC<GameBoardFlipProps> = ({ isFlipped, onFlip }) => {
       size="sm"
       className="flex items-center gap-1 bg-card/60 hover:bg-card"
       onClick={onFlip}
-      title="Flip board"
+      title={isFlipped ? "Flip board back" : "Flip board"}
     >
-      <RotateCw size={14} />
+      <RotateCw size={14} className={isFlipped ? "rotate-180 transition-transform" : "transition-transform"} />
       <span className="text-xs">Flip</span>
     </Button>
   );
