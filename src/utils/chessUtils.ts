@@ -1,3 +1,4 @@
+
 import { ChessBoard, ChessPiece, ChessSquare, PieceColor, PieceType, TimeControl, TimeControlOption } from './chessTypes';
 
 export const createInitialBoard = (): ChessBoard => {
@@ -181,26 +182,6 @@ export const isCheckmate = (board: ChessBoard, color: PieceColor): boolean => {
     }
   }
   
-  return true;
-};
-
-// Check if a player is in stalemate
-export const isStalemate = (board: ChessBoard, color: PieceColor): boolean => {
-  // If in check, it's not stalemate
-  if (isInCheck(board, color)) return false;
-  
-  // Check if any piece has a legal move
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const piece = board.squares[r][c].piece;
-      if (piece && piece.color === color) {
-        const validMoves = getValidMoves(board, board.squares[r][c]);
-        if (validMoves.length > 0) return false;
-      }
-    }
-  }
-  
-  // No legal moves and not in check = stalemate
   return true;
 };
 

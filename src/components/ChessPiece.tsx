@@ -1,53 +1,21 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ChessPiece } from '../utils/chessTypes';
 
 interface ChessPieceProps {
   piece: ChessPiece;
-  draggable?: boolean;
-  onDragStart?: () => void;
-  onDragEnd?: () => void;
 }
 
-const ChessPieceComponent: React.FC<ChessPieceProps> = ({ 
-  piece, 
-  draggable = false,
-  onDragStart,
-  onDragEnd
-}) => {
+const ChessPieceComponent: React.FC<ChessPieceProps> = ({ piece }) => {
   const { type, color } = piece;
-  const [isDragging, setIsDragging] = useState(false);
 
   // Function to get the image source for each piece
   const getPieceImage = (): string => {
     return `/images/pieces/${color}-${type}.svg`;
   };
 
-  const handleDragStart = (e: React.DragEvent) => {
-    if (!draggable) return;
-    setIsDragging(true);
-    if (onDragStart) onDragStart();
-    
-    // Set drag image
-    const img = new Image();
-    img.src = getPieceImage();
-    e.dataTransfer.setDragImage(img, 30, 30);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragEnd = () => {
-    if (!draggable) return;
-    setIsDragging(false);
-    if (onDragEnd) onDragEnd();
-  };
-
   return (
-    <div 
-      className={`chess-piece group transition-all duration-200 hover:scale-110 ${isDragging ? 'opacity-50' : ''}`}
-      draggable={draggable}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
+    <div className="chess-piece group transition-all duration-200 hover:scale-110">
       <img 
         src={getPieceImage()} 
         alt={`${color} ${type}`}
