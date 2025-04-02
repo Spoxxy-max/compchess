@@ -105,6 +105,8 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         description: `Successfully staked ${formatStakeAmount(stake)} SOL to join the game`,
       });
       
+      // Close modal immediately and redirect
+      onClose();
       onConfirm(gameId);
     } catch (error: any) {
       console.error("Error processing join stake:", error);

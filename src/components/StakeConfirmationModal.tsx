@@ -132,6 +132,8 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
       });
       
+      // Close modal immediately and redirect
+      onClose();
       onConfirm();
     } catch (error: any) {
       console.error("Error processing stake:", error);

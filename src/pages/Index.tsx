@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import NewGameModal from '../components/NewGameModal';
 import StakeConfirmationModal from '../components/StakeConfirmationModal';
 import JoinGameModal from '../components/JoinGameModal';
+import JoinStakeConfirmationModal from '../components/JoinStakeConfirmationModal';
 import TournamentPlaceholder from '../components/TournamentPlaceholder';
 import { TimeControl } from '../utils/chessTypes';
 import { timeControlOptions } from '../utils/chessUtils';
@@ -16,8 +18,10 @@ const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isStakeConfirmationModalOpen, setIsStakeConfirmationModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
+  const [isJoinStakeConfirmationModalOpen, setIsJoinStakeConfirmationModalOpen] = useState(false);
   const [stakeAmount, setStakeAmount] = useState(0);
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<string>('');
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -68,6 +72,7 @@ const Index = () => {
   };
 
   const handleConfirmStake = () => {
+    // Navigate directly to the game page
     navigate('/game/new', {
       state: {
         timeControl: selectedTimeControl,
@@ -75,14 +80,22 @@ const Index = () => {
         playerColor: 'white',
       },
     });
-    setIsStakeConfirmationModalOpen(false);
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
+    setSelectedGameId(gameId);
+    setStakeAmount(stake);
+    setSelectedTimeControl(timeControl);
+    setIsJoinGameModalOpen(false);
+    setIsJoinStakeConfirmationModalOpen(true);
+  };
+
+  const handleConfirmJoinStake = (gameId: string) => {
+    // Navigate directly to the joined game
     navigate(`/game/${gameId}`, {
       state: {
-        timeControl,
-        stake,
+        timeControl: selectedTimeControl,
+        stake: stakeAmount,
         playerColor: 'black',
         gameId
       }
@@ -91,7 +104,7 @@ const Index = () => {
 
   const formatTimeControl = (timeControl: TimeControl | null) => {
     if (!timeControl) return '';
-    return `${timeControl.startTime} + ${timeControl.increment}`;
+    return `${timeControl.startTime / 60} + ${timeControl.increment}`;
   };
 
   return (
@@ -256,6 +269,16 @@ const Index = () => {
         isOpen={isJoinGameModalOpen}
         onClose={()=> setIsJoinGameModalOpen(false)}
         onJoinGame={handleJoinGameSubmit}
+      />
+
+      <JoinStakeConfirmationModal
+        isOpen={isJoinStakeConfirmationModalOpen}
+        onClose={() => setIsJoinStakeConfirmationModalOpen(false)}
+        onConfirm={handleConfirmJoinStake}
+        gameId={selectedGameId}
+        stake={stakeAmount}
+        timeControl={formatTimeControl(selectedTimeControl)}
+        timeControlObject={selectedTimeControl}
       />
     </div>
   );
