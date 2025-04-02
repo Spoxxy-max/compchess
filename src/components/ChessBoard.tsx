@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
-import { createInitialBoard, getValidMoves, isInCheck, isCheckmate } from '../utils/chessUtils';
+import { createInitialBoard, getValidMoves, isInCheck, isCheckmate, isStalemate } from '../utils/chessUtils';
 import ChessPieceComponent from './ChessPiece';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
@@ -11,15 +11,17 @@ interface ChessBoardProps {
   onMove?: (from: ChessSquare, to: ChessSquare) => void;
   gameId?: string;
   readOnly?: boolean;
+  initialBoard?: ChessBoardType;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({ 
   playerColor = 'white', 
   onMove,
   gameId,
-  readOnly = false
+  readOnly = false,
+  initialBoard
 }) => {
-  const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
+  const [board, setBoard] = useState<ChessBoardType>(initialBoard || createInitialBoard());
   const [flipped, setFlipped] = useState(playerColor === 'black');
   const [boardSize, setBoardSize] = useState('95vw');
   const isMobile = useIsMobile();
@@ -27,6 +29,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const boardRef = useRef<HTMLDivElement>(null);
   const [lastMove, setLastMove] = useState<{from: ChessSquare, to: ChessSquare} | null>(null);
   const [draggedPiece, setDraggedPiece] = useState<{square: ChessSquare, x: number, y: number} | null>(null);
+  const [isPromoting, setIsPromoting] = useState(false);
+  const [promotionSquare, setPromotionSquare] = useState<ChessSquare | null>(null);
 
   // Audio effects
   const moveAudio = useRef<HTMLAudioElement | null>(null);
@@ -39,6 +43,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     captureAudio.current = new Audio('/sounds/capture.mp3');
     checkAudio.current = new Audio('/sounds/check.mp3');
   }, []);
+
+  // Update board when initialBoard changes (for multiplayer)
+  useEffect(() => {
+    if (initialBoard) {
+      setBoard(initialBoard);
+    }
+  }, [initialBoard]);
 
   // Responsive board size calculation
   useEffect(() => {
@@ -70,7 +81,23 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     if (board.gameOver || readOnly) return;
     
     // If it's not the player's turn in a multiplayer game, do nothing
-    if (gameId && board.currentTurn !== playerColor) return;
+    if (gameId && board.currentTurn !== playerColor) {
+      if (board.selectedSquare) {
+        // Deselect current piece if it's not player's turn
+        setBoard({
+          ...board,
+          selectedSquare: null,
+          validMoves: [],
+        });
+      }
+      return;
+    }
+
+    // If currently in promotion state, handle piece selection
+    if (isPromoting && promotionSquare) {
+      // Promotion is handled separately
+      return;
+    }
 
     // If a piece is already selected
     if (board.selectedSquare) {
@@ -109,10 +136,31 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
   };
 
-  const movePiece = (from: ChessSquare, to: ChessSquare) => {
-    const newBoard = { ...board };
-    const isCapture = !!to.piece;
+  const handlePromotion = (pieceType: 'queen' | 'rook' | 'bishop' | 'knight') => {
+    if (!promotionSquare || !board.selectedSquare) return;
 
+    const from = board.selectedSquare;
+    const to = promotionSquare;
+
+    // Copy board to avoid direct mutation
+    const newBoard = JSON.parse(JSON.stringify(board));
+    
+    // Set the promoted piece
+    if (from.piece) {
+      from.piece.type = pieceType;
+    }
+    
+    // Complete the move with the promoted piece
+    finishMove(newBoard, from, to);
+    
+    // Reset promotion state
+    setIsPromoting(false);
+    setPromotionSquare(null);
+  };
+
+  const finishMove = (newBoard: ChessBoardType, from: ChessSquare, to: ChessSquare) => {
+    const isCapture = !!to.piece;
+    
     // Store the move for highlighting
     setLastMove({ from, to });
     
@@ -142,16 +190,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       }
     }
 
-    // Special move: Pawn promotion
-    const isPawnPromotion = from.piece?.type === 'pawn' && 
-      ((from.piece.color === 'white' && to.row === 0) || 
-       (from.piece.color === 'black' && to.row === 7));
-
-    if (isPawnPromotion) {
-      // Promote to queen automatically for now
-      from.piece.type = 'queen';
-    }
-    
     // Move piece
     to.piece = from.piece;
     from.piece = null;
@@ -172,6 +210,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     const opponentColor = newBoard.currentTurn;
     const isInCheckNow = isInCheck(newBoard, opponentColor);
     const isCheckmateNow = isInCheckNow && isCheckmate(newBoard, opponentColor);
+    const isStalemateNow = !isInCheckNow && isStalemate(newBoard, opponentColor);
     
     // Play sound
     if (isCapture && captureAudio.current) {
@@ -190,6 +229,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         title: "Checkmate!",
         description: `${newBoard.winner} wins the game!`,
       });
+    } else if (isStalemateNow) {
+      newBoard.gameOver = true;
+      newBoard.winner = null; // Draw
+      toast({
+        title: "Stalemate!",
+        description: "The game is a draw!",
+      });
     } else if (isInCheckNow) {
       toast({
         description: `${opponentColor} is in check!`,
@@ -204,6 +250,26 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
   };
 
+  const movePiece = (from: ChessSquare, to: ChessSquare) => {
+    // Copy board to avoid direct mutation
+    const newBoard = JSON.parse(JSON.stringify(board));
+    
+    // Special move: Pawn promotion
+    const isPawnPromotion = from.piece?.type === 'pawn' && 
+      ((from.piece.color === 'white' && to.row === 0) || 
+       (from.piece.color === 'black' && to.row === 7));
+
+    if (isPawnPromotion) {
+      // Set promotion state to show promotion UI
+      setIsPromoting(true);
+      setPromotionSquare(to);
+      return; // Wait for user to select promotion piece
+    }
+    
+    // Complete the move
+    finishMove(newBoard, from, to);
+  };
+
   // Helper function to get piece symbol for notation
   const getPieceSymbol = (pieceType: string): string => {
     switch (pieceType) {
@@ -214,6 +280,38 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       case 'king': return 'K';
       default: return '';
     }
+  };
+
+  const renderPromotionOptions = () => {
+    if (!isPromoting || !promotionSquare) return null;
+    
+    const color = board.currentTurn;
+    const promotionPieces: ('queen' | 'rook' | 'bishop' | 'knight')[] = ['queen', 'rook', 'bishop', 'knight'];
+    const col = promotionSquare.col;
+    const row = color === 'white' ? 0 : 7;
+    
+    return (
+      <div className="absolute inset-0 bg-black/70 z-20 flex items-center justify-center">
+        <div className="bg-card p-4 rounded-lg shadow-xl">
+          <h3 className="text-lg font-medium mb-4 text-center">Promote Pawn</h3>
+          <div className="grid grid-cols-4 gap-2">
+            {promotionPieces.map(pieceType => (
+              <div 
+                key={pieceType}
+                className="w-16 h-16 rounded-lg hover:bg-primary/20 flex items-center justify-center cursor-pointer transition-colors duration-200"
+                onClick={() => handlePromotion(pieceType)}
+              >
+                <img 
+                  src={`/images/pieces/${color}-${pieceType}.svg`} 
+                  alt={`${color} ${pieceType}`}
+                  className="w-12 h-12"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderSquare = (square: ChessSquare, isSelected: boolean, isValidMove: boolean) => {
@@ -328,7 +426,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         {/* The actual chess board */}
         <div 
           ref={boardRef}
-          className="chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50"
+          className="chess-board rounded-lg overflow-hidden shadow-xl border-2 border-solana/50 relative"
           style={{ 
             width: boardSize, 
             height: boardSize,
@@ -338,6 +436,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           }}
         >
           {renderBoard()}
+          {renderPromotionOptions()}
         </div>
       </div>
     );
@@ -352,6 +451,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       <button
         onClick={toggleBoardOrientation}
         className="mt-4 px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm transition-colors duration-200"
+        disabled={readOnly}
       >
         Flip Board
       </button>

@@ -1,3 +1,4 @@
+
 import { executeSmartContractMethod, buildStakingTransaction, solToLamports, lamportsToSol } from './smartContract';
 import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js';
 import { ChessErrorCode, ChessGameAccount, GameStatus } from './walletTypes';
@@ -156,24 +157,48 @@ export const chessGameContract: ChessGameContract = {
   
   claimVictory: async (gameId: string, reason: string) => {
     console.log(`Claiming victory in game ${gameId} due to ${reason}`);
-    // This will be implemented with a future instruction from an updated IDL
-    // For now, we'll simulate success
-    return true;
+    try {
+      // This will be implemented with actual Solana program call
+      const result = await executeSmartContractMethod('claimVictory', [gameId, reason]);
+      
+      if (!result.success) {
+        throw new Error(result.error?.message || "Failed to claim victory");
+      }
+      
+      return result.success;
+    } catch (error) {
+      console.error('Error claiming victory:', error);
+      throw false;
+    }
   },
   
   claimDraw: async (gameId: string, reason: string) => {
     console.log(`Claiming draw in game ${gameId} due to ${reason}`);
-    // This will be implemented with a future instruction from an updated IDL
-    // For now, we'll simulate success
-    return true;
+    try {
+      // This will be implemented with actual Solana program call
+      const result = await executeSmartContractMethod('claimDraw', [gameId, reason]);
+      
+      if (!result.success) {
+        throw new Error(result.error?.message || "Failed to claim draw");
+      }
+      
+      return result.success;
+    } catch (error) {
+      console.error('Error claiming draw:', error);
+      return false;
+    }
   },
   
   abortGame: async (gameId: string, reason: string) => {
     console.log(`Aborting game ${gameId} due to ${reason}`);
     try {
-      // This needs to be implemented with a specific instruction
-      // For now, we'll simulate with the makeMove instruction with special values
-      const result = await executeSmartContractMethod('makeMove', [gameId, "abort", reason]);
+      // This needs to be implemented with actual Solana program call
+      const result = await executeSmartContractMethod('abortGame', [gameId, reason]);
+      
+      if (!result.success) {
+        throw new Error(result.error?.message || "Failed to abort game");
+      }
+      
       return result.success;
     } catch (error) {
       console.error('Error aborting game:', error);
@@ -184,10 +209,14 @@ export const chessGameContract: ChessGameContract = {
   withdrawFunds: async (gameId: string) => {
     console.log(`Withdrawing funds from game ${gameId}`);
     try {
-      // This needs to be implemented with a specific instruction
-      // For now, we'll simulate with a mock response
-      const result = { success: true, amount: 1.0 };
-      return result;
+      // This will be implemented with actual Solana program call
+      const result = await executeSmartContractMethod('withdrawFunds', [gameId]);
+      
+      if (!result.success) {
+        throw new Error(result.error?.message || "Failed to withdraw funds");
+      }
+      
+      return { success: true, amount: result.data || 0 };
     } catch (error) {
       console.error('Error withdrawing funds:', error);
       return { success: false, amount: 0 };
