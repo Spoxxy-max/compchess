@@ -1,4 +1,4 @@
-
+import './polyfills';
 import { createRoot } from 'react-dom/client'
 import { Suspense, StrictMode } from 'react'
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary'
