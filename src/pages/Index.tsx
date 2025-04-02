@@ -83,7 +83,8 @@ const Index = () => {
       state: {
         timeControl,
         stake,
-        playerColor: 'black'
+        playerColor: 'black',
+        gameId
       }
     });
   };
