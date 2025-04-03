@@ -38,7 +38,28 @@ const boardToJson = (board: ChessBoard): Json => {
 
 // Convert JSON back to ChessBoard
 const jsonToBoard = (json: Json): ChessBoard => {
-  return json as unknown as Json;
+  // Ensure we're properly casting the Json type to ChessBoard
+  // This handles the case where json might be a string or other primitive
+  if (typeof json === 'object' && json !== null) {
+    return json as unknown as ChessBoard;
+  }
+  
+  // If json is not an object, return a minimal valid ChessBoard object
+  // This is a fallback to prevent runtime errors
+  console.warn('Invalid board state format received from database:', json);
+  return {
+    squares: [],
+    currentTurn: 'white',
+    selectedSquare: null,
+    validMoves: [],
+    capturedPieces: [],
+    moveHistory: [],
+    whiteTime: 0,
+    blackTime: 0,
+    isTimerRunning: false,
+    gameOver: false,
+    winner: null
+  };
 };
 
 // Create a new game in Supabase - with duplicate check
