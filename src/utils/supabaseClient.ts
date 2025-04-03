@@ -331,10 +331,23 @@ export const updateGameState = async (
 ): Promise<boolean> => {
   console.log(`Updating game state for game ${gameId}, current turn: ${boardState.currentTurn}`);
   
+  // Create a clean copy of the board state to prevent issues with circular references
+  const cleanBoardState = {
+    ...boardState,
+    selectedSquare: null, // Clear selected square
+    validMoves: [],       // Clear valid moves
+    squares: boardState.squares.map(row => 
+      row.map(square => ({
+        ...square,
+        piece: square.piece ? { ...square.piece } : null
+      }))
+    )
+  };
+
   const { error } = await supabase
     .from('chess_games')
     .update({ 
-      board_state: boardToJson(boardState),
+      board_state: boardToJson(cleanBoardState),
       move_history: moveHistory,
       current_turn: boardState.currentTurn,
       time_white: boardState.whiteTime,
@@ -459,12 +472,14 @@ export const setupGameRealtime = (gameId: string, onGameUpdate: (game: GameData)
         const updatedGame = await getGameById(gameId);
         
         if (updatedGame) {
-          console.log('Forwarding updated game state to UI');
+          console.log('Forwarding updated game state to UI', updatedGame);
           onGameUpdate(updatedGame);
         }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log(`Realtime subscription status: ${status}`);
+    });
     
   console.log('Realtime subscription established');
   

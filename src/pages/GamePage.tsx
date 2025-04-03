@@ -294,36 +294,44 @@ const GamePage: React.FC<GamePageProps> = ({
             
             getGameById(newGameId).then(data => {
               if (data) {
+                console.log("Game data received:", data);
                 setGameData(data);
-                setGameState('waiting');
                 
-                navigate(`/game/${data.id}`, { 
-                  replace: true,
-                  state: {
-                    timeControl,
-                    stake,
-                    playerColor: 'white'
-                  }
-                });
-                
-                toast({
-                  title: "Game Created",
-                  description: `Waiting for an opponent to join`,
-                });
+                if (data.board_state) {
+                  console.log("Setting initial board state from game data");
+                  setBoard(data.board_state);
+                } else {
+                  console.warn("No board state in game data");
+                }
                 
                 const subscription = subscribeToGame(data.id, (payload) => {
+                  console.log("Game update received", payload);
                   const updatedGame = payload.new as GameData;
                   
-                  if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
-                    setOpponentJoined(true);
-                    setGameState('countdown');
-                    toast({
-                      title: "Opponent Joined",
-                      description: "The game will start shortly!",
-                    });
+                  setGameData(updatedGame);
+                  
+                  if (updatedGame.board_state) {
+                    console.log("Updating board state from realtime update");
+                    setBoard(updatedGame.board_state);
                   }
                   
-                  setGameData(updatedGame);
+                  if (updatedGame.status === 'active' && !opponentJoined && updatedGame.opponent_id) {
+                    setOpponentJoined(true);
+                    setGameState('countdown');
+                  } else if (updatedGame.status === 'completed') {
+                    setGameState('completed');
+                    const isWinner = updatedGame.winner_id === wallet.publicKey;
+                    setGameWinner(isWinner ? 'you' : updatedGame.current_turn === 'white' ? 'black' : 'white');
+                    setShowVictoryModal(true);
+                  } else if (updatedGame.status === 'aborted') {
+                    setGameState('aborted');
+                    toast({
+                      title: "Game Aborted",
+                      description: "The game was aborted.",
+                      variant: "destructive",
+                    });
+                    navigate('/');
+                  }
                 });
                 
                 setSubscription(subscription);
@@ -355,13 +363,26 @@ const GamePage: React.FC<GamePageProps> = ({
         
         getGameById(gameId).then(game => {
           if (game) {
+            console.log("Game data received:", game);
             setGameData(game);
-            setBoard(game.board_state);
+            
+            if (game.board_state) {
+              console.log("Setting initial board state from game data");
+              setBoard(game.board_state);
+            } else {
+              console.warn("No board state in game data");
+            }
             
             const subscription = subscribeToGame(gameId, (payload) => {
+              console.log("Game update received", payload);
               const updatedGame = payload.new as GameData;
               
               setGameData(updatedGame);
+              
+              if (updatedGame.board_state) {
+                console.log("Updating board state from realtime update");
+                setBoard(updatedGame.board_state);
+              }
               
               if (updatedGame.status === 'active' && !opponentJoined && updatedGame.opponent_id) {
                 setOpponentJoined(true);
@@ -400,11 +421,17 @@ const GamePage: React.FC<GamePageProps> = ({
   }, [gameId, wallet?.publicKey, stakeConfirmed, navigate]);
 
   const handleCountdownComplete = useCallback(() => {
+    console.log("Countdown complete, starting game");
     setCountdownComplete(true);
     setGameState('playing');
     
     if (!isPracticeMode && gameData) {
       startGame(gameData.id);
+      
+      setBoard(prevBoard => ({
+        ...prevBoard,
+        isTimerRunning: true
+      }));
     }
     
     if (!isPracticeMode && gameData && playerColor === 'black') {
@@ -485,6 +512,8 @@ const GamePage: React.FC<GamePageProps> = ({
   }, [gameState, countdownComplete, isPracticeMode, gameData, toast, playerColor, stakeConfirmed]);
 
   const handleMove = useCallback((from, to) => {
+    console.log(`Move from ${from.row},${from.col} to ${to.row},${to.col}`);
+    
     if (!firstMoveMade) {
       setFirstMoveMade(true);
       
@@ -519,7 +548,13 @@ const GamePage: React.FC<GamePageProps> = ({
 
     if (!isPracticeMode && gameData) {
       setBoard(prevBoard => {
-        updateGameState(gameData.id, prevBoard, prevBoard.moveHistory);
+        console.log("Updating game state in database after move");
+        updateGameState(gameData.id, prevBoard, prevBoard.moveHistory)
+          .then(success => {
+            if (!success) {
+              console.error("Failed to update game state in database");
+            }
+          });
         return prevBoard;
       });
     }
@@ -604,6 +639,7 @@ const GamePage: React.FC<GamePageProps> = ({
             gameId={gameId !== 'practice' ? gameId : undefined}
             onMove={handleMove}
             readOnly={gameState !== 'playing'}
+            boardState={board}
           />
         </div>
         
@@ -622,6 +658,8 @@ const GamePage: React.FC<GamePageProps> = ({
       </div>
     );
   };
+
+  console.log("Current game state:", gameState, "Player color:", playerColor, "Current turn:", board.currentTurn);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">

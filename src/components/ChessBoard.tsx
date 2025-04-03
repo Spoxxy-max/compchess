@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { ChessBoard as ChessBoardType, ChessSquare, PieceColor } from '../utils/chessTypes';
 import { createInitialBoard, getValidMoves, isInCheck, isCheckmate } from '../utils/chessUtils';
@@ -11,15 +10,17 @@ interface ChessBoardProps {
   onMove?: (from: ChessSquare, to: ChessSquare) => void;
   gameId?: string;
   readOnly?: boolean;
+  boardState?: ChessBoardType;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({ 
   playerColor = 'white', 
   onMove,
   gameId,
-  readOnly = false
+  readOnly = false,
+  boardState
 }) => {
-  const [board, setBoard] = useState<ChessBoardType>(createInitialBoard());
+  const [board, setBoard] = useState<ChessBoardType>(boardState || createInitialBoard());
   const [flipped, setFlipped] = useState(playerColor === 'black');
   const [boardSize, setBoardSize] = useState('95vw');
   const isMobile = useIsMobile();
@@ -32,6 +33,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const moveAudio = useRef<HTMLAudioElement | null>(null);
   const captureAudio = useRef<HTMLAudioElement | null>(null);
   const checkAudio = useRef<HTMLAudioElement | null>(null);
+
+  // Update board when boardState prop changes
+  useEffect(() => {
+    if (boardState) {
+      setBoard(boardState);
+    }
+  }, [boardState]);
 
   useEffect(() => {
     // Initialize audio elements
@@ -67,10 +75,19 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   }, [isMobile]);
 
   const handleSquareClick = (square: ChessSquare) => {
-    if (board.gameOver || readOnly) return;
+    // Don't allow moves if the game is over or in read-only mode
+    if (board.gameOver || readOnly) {
+      console.log('Game is over or in read-only mode, moves not allowed');
+      return;
+    }
     
     // If it's not the player's turn in a multiplayer game, do nothing
-    if (gameId && board.currentTurn !== playerColor) return;
+    if (gameId && board.currentTurn !== playerColor) {
+      console.log(`Not your turn. Current turn: ${board.currentTurn}, Your color: ${playerColor}`);
+      return;
+    }
+
+    console.log('Handling square click:', square, 'Selected square:', board.selectedSquare);
 
     // If a piece is already selected
     if (board.selectedSquare) {
@@ -80,9 +97,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       );
 
       if (isValidMove) {
+        console.log('Valid move found, moving piece');
         // Move the piece and handle the game logic
         movePiece(board.selectedSquare, square);
       } else if (square.piece && square.piece.color === board.currentTurn) {
+        console.log('Selecting new piece of same color');
         // Select a new piece
         const newValidMoves = getValidMoves(board, square);
         setBoard({
@@ -91,6 +110,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           validMoves: newValidMoves,
         });
       } else {
+        console.log('Deselecting current piece');
         // Deselect current piece
         setBoard({
           ...board,
@@ -99,8 +119,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         });
       }
     } else if (square.piece && square.piece.color === board.currentTurn) {
+      console.log('Selecting piece:', square.piece);
       // Select piece
       const validMoves = getValidMoves(board, square);
+      console.log('Valid moves:', validMoves.length);
       setBoard({
         ...board,
         selectedSquare: square,
@@ -342,6 +364,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       </div>
     );
   };
+
+  // Log important props for debugging
+  console.log('ChessBoard props:', { 
+    gameId, 
+    playerColor, 
+    readOnly, 
+    currentTurn: board.currentTurn,
+    gameOver: board.gameOver
+  });
 
   return (
     <div className="flex flex-col items-center">
