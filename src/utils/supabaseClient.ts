@@ -161,7 +161,36 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
   return true;
 };
 
-// Get available games (excluding games created by the current user)
+// Get all games (including those created by the current user)
+export const getAllGames = async (): Promise<GameData[]> => {
+  console.log("Fetching all available games");
+  
+  const { data, error } = await supabase
+    .from('chess_games')
+    .select('*')
+    .or('status.eq.waiting,status.eq.active')
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching all games:', error);
+    return [];
+  }
+  
+  console.log(`Found ${data?.length || 0} available games`);
+  
+  return (data || []).map(game => ({
+    ...game,
+    // Ensure stake is properly formatted as a number
+    stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
+    board_state: jsonToBoard(game.board_state),
+    move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
+    status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
+    current_turn: game.current_turn as PieceColor,
+    last_activity: new Date().toISOString()
+  }));
+};
+
+// Get available games (excluding games created by the current user) - kept for backward compatibility
 export const getAvailableGames = async (currentUserId?: string): Promise<GameData[]> => {
   console.log("Fetching available games, excluding user:", currentUserId);
   

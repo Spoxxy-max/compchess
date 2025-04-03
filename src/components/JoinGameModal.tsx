@@ -8,13 +8,15 @@ import { Slider } from "@/components/ui/slider";
 import { TimeControl } from '../utils/chessTypes';
 import { formatTime, timeControlOptions } from '../utils/chessUtils';
 import { Timer, User, Loader2, SlidersHorizontal, CoinsIcon } from 'lucide-react';
-import { getAvailableGames, GameData, joinGame, getGameById } from '../utils/supabaseClient';
+import { getAllGames, GameData, joinGame, getGameById } from '../utils/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
 import JoinStakeConfirmationModal from './JoinStakeConfirmationModal';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from 'react-router-dom';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface JoinGameModalProps {
   isOpen: boolean;
@@ -36,6 +38,7 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   const [maxStake, setMaxStake] = useState<number>(10);
   const [stakeRange, setStakeRange] = useState<[number, number]>([0, 10]);
   const [timeControlFilter, setTimeControlFilter] = useState<string[]>([]);
+  const [showOnlyMyGames, setShowOnlyMyGames] = useState<boolean>(false);
   
   const { toast } = useToast();
   const { publicKey } = useWallet();
@@ -64,9 +67,16 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
         );
       }
       
+      // Apply "Games Created by Me" filter if selected
+      if (showOnlyMyGames && publicKey) {
+        filtered = filtered.filter(game => 
+          game.host_id === publicKey.toString()
+        );
+      }
+      
       setFilteredGames(filtered);
     }
-  }, [availableGames, stakeRange, timeControlFilter]);
+  }, [availableGames, stakeRange, timeControlFilter, showOnlyMyGames, publicKey]);
 
   // Calculate max stake for slider
   useEffect(() => {
@@ -81,9 +91,9 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   const fetchAvailableGames = async () => {
     setLoading(true);
     try {
-      // Exclude user's own games when fetching by passing the wallet public key
-      const games = await getAvailableGames(publicKey?.toString());
-      console.log("Available games fetched:", games);
+      // Get ALL games (including those created by the user)
+      const games = await getAllGames();
+      console.log("All games fetched:", games);
       setAvailableGames(games);
       setFilteredGames(games);
     } catch (error) {
@@ -114,6 +124,33 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
         }
         
         console.log("Selected game for joining:", game);
+        
+        // Check if this is user's own game and it has an opponent
+        if (publicKey && game.host_id === publicKey.toString() && game.opponent_id) {
+          // Navigate directly to the game if it's the user's game and someone has joined
+          navigate(`/game/${game.id}`, {
+            state: {
+              timeControl: timeControlOptions.find(
+                option => option.type === game.time_control
+              ),
+              stake: game.stake,
+              playerColor: 'white',
+              gameId: game.id
+            }
+          });
+          onClose();
+          return;
+        }
+        
+        // Check if the user is trying to join their own game
+        if (publicKey && game.host_id === publicKey.toString() && !game.opponent_id) {
+          toast({
+            title: "Cannot Join",
+            description: "You cannot join your own game. Please wait for someone else to join.",
+            variant: "destructive",
+          });
+          return;
+        }
         
         // Find the matching time control option or create a custom one
         const timeControlOption = timeControlOptions.find(
@@ -203,6 +240,33 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
     return `${timeInMinutes}:${String(timeInSeconds).padStart(2, '0')}`;
   };
 
+  // Get game status for display
+  const getGameStatus = (game: GameData, currentUserAddress?: string): { label: string; variant: "default" | "secondary" | "outline" } => {
+    if (game.status === 'active' && game.host_id && game.opponent_id) {
+      return { 
+        label: "Joined", 
+        variant: "default" 
+      };
+    }
+    
+    if (game.status === 'waiting') {
+      return { 
+        label: "Waiting", 
+        variant: "secondary" 
+      };
+    }
+    
+    return { 
+      label: game.status.charAt(0).toUpperCase() + game.status.slice(1), 
+      variant: "outline" 
+    };
+  };
+
+  // Check if this is the user's game
+  const isUserGame = (game: GameData): boolean => {
+    return publicKey?.toString() === game.host_id;
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -259,6 +323,19 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
                           ))}
                         </div>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="show-my-games" 
+                            checked={showOnlyMyGames}
+                            onCheckedChange={(checked) => setShowOnlyMyGames(checked === true)}
+                          />
+                          <Label htmlFor="show-my-games" className="text-sm font-medium cursor-pointer">
+                            Games Created by Me
+                          </Label>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex justify-end mt-4 space-x-2">
                       <Button 
@@ -266,6 +343,7 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
                         onClick={() => {
                           setStakeRange([0, maxStake]);
                           setTimeControlFilter([]);
+                          setShowOnlyMyGames(false);
                         }}
                       >
                         Reset
@@ -295,6 +373,8 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                 {filteredGames.map((game) => {
                   const timeControlLabel = getTimeControlLabel(game);
+                  const gameStatus = getGameStatus(game, publicKey?.toString());
+                  const isMyGame = isUserGame(game);
                   
                   return (
                     <Card
@@ -309,17 +389,23 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
                       <div className="flex justify-between items-center">
                         <div className="flex items-center space-x-2">
                           <User className="w-4 h-4" />
-                          <span className="font-medium">{game.host_id.substring(0, 8)}...</span>
+                          <span className="font-medium">
+                            {game.host_id.substring(0, 8)}...
+                            {isMyGame && <span className="ml-1 text-xs text-solana">(You)</span>}
+                          </span>
                         </div>
+                        <Badge variant={gameStatus.variant}>{gameStatus.label}</Badge>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
                         <div className="flex items-center space-x-2 text-sm">
                           <Timer className="w-4 h-4" />
                           <span>{formatTime(game.time_white)}</span>
                         </div>
-                      </div>
-                      <div className="flex justify-between items-center mt-2 text-sm">
-                        <span className="text-gray-400">
+                        <span className="text-sm text-gray-400">
                           {timeControlLabel}
                         </span>
+                      </div>
+                      <div className="flex justify-end mt-2">
                         <span className="font-semibold text-solana">{game.stake} SOL</span>
                       </div>
                     </Card>
@@ -338,7 +424,10 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
               onClick={handleJoinGameClick}
               disabled={!selectedGameId}
             >
-              Join Game
+              {selectedGameId && filteredGames.find(g => g.id === selectedGameId)?.host_id === publicKey?.toString() && 
+               filteredGames.find(g => g.id === selectedGameId)?.opponent_id 
+                ? 'Start Game' 
+                : 'Join Game'}
             </Button>
           </DialogFooter>
         </DialogContent>

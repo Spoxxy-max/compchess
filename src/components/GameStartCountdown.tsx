@@ -98,6 +98,21 @@ const GameStartCountdown: React.FC<GameStartCountdownProps> = ({
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
+  // Status message based on current state
+  const getStatusMessage = () => {
+    if (status === 'waiting') {
+      if (playerColor === 'white') {
+        return "Waiting for an opponent to join...";
+      } else {
+        return "Connecting to game...";
+      }
+    } else if (status === 'ready') {
+      return "Opponent connected! Preparing game...";
+    } else {
+      return "Game starting in:";
+    }
+  };
+
   return (
     <Card className="p-6 max-w-md w-full bg-card/90 backdrop-blur shadow-xl border border-solana/20">
       <div className="text-center space-y-6">
@@ -109,22 +124,26 @@ const GameStartCountdown: React.FC<GameStartCountdownProps> = ({
           </p>
         </div>
         
-        {status === 'waiting' && (
-          <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-10 w-10 animate-spin text-solana mb-4" />
-            <p>Waiting for opponent to connect...</p>
-          </div>
-        )}
-        
-        {status === 'counting' && (
-          <div className="py-6">
-            <CountdownTimer 
-              seconds={5} 
-              onComplete={onCountdownComplete}
-              size="large"
-            />
-          </div>
-        )}
+        <div className="py-2">
+          <p className="text-sm text-gray-300 mb-4">{getStatusMessage()}</p>
+          
+          {status === 'waiting' && (
+            <div className="flex flex-col items-center justify-center py-4">
+              <Loader2 className="h-10 w-10 animate-spin text-solana mb-4" />
+              <p>Share your game link to invite an opponent</p>
+            </div>
+          )}
+          
+          {status === 'counting' && (
+            <div className="py-6">
+              <CountdownTimer 
+                seconds={5} 
+                onComplete={onCountdownComplete}
+                size="large"
+              />
+            </div>
+          )}
+        </div>
         
         <div className="pt-4 border-t border-gray-700/30">
           <div className="flex justify-between">
