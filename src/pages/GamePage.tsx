@@ -104,7 +104,7 @@ const GamePage: React.FC<GamePageProps> = ({
       
       if (!isIDLInitialized()) {
         toast({
-          title: "IDL Not Initialized",
+          title: "Not Initialized",
           description: "Please initialize the Chess Game IDL in the Smart Contract Config page first.",
           variant: "destructive",
         });
