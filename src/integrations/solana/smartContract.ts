@@ -26,8 +26,14 @@ export interface GameContract {
   // Method to claim victory (e.g., on time out)
   claimVictory: (gameId: string) => Promise<boolean>;
   
+  // Method to claim a draw
+  claimDraw: (gameId: string, reason: string) => Promise<boolean>;
+  
+  // Method to abort a game
+  abortGame: (gameId: string, reason: string) => Promise<boolean>;
+  
   // Method to withdraw winnings
-  withdrawWinnings: (gameId: string) => Promise<boolean>;
+  withdrawFunds: (gameId: string) => Promise<boolean>;
   
   // Method to get a game state
   getGameState: (gameId: string) => Promise<any>;

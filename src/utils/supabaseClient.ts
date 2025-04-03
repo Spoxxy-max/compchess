@@ -1,15 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { ChessBoard, PieceColor } from './chessTypes';
+import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
 import { Json } from '@/integrations/supabase/types';
 
 // Game-related functions
 export interface CreateGameParams {
   hostId: string;
-  timeControl: string;
-  timeIncrement: number;
+  timeControl: TimeControl;
   stake: number;
-  initialBoard: ChessBoard;
+  initialBoard?: ChessBoard;
 }
 
 export interface GameData {
@@ -42,21 +41,30 @@ const jsonToBoard = (json: Json): ChessBoard => {
 };
 
 // Create a new game in Supabase
-export const createGame = async (params: CreateGameParams): Promise<GameData | null> => {
-  const { hostId, timeControl, timeIncrement, stake, initialBoard } = params;
+export const createGame = async (
+  hostId: string,
+  timeControl: TimeControl,
+  stake: number
+): Promise<string | null> => {
+  console.log("Creating new game with params:", { hostId, timeControl, stake });
   
-  console.log("Creating new game with params:", { hostId, timeControl, timeIncrement, stake });
-  
-  const startTime = initialBoard.whiteTime; // Both white and black have the same starting time
+  const startTime = timeControl.startTime; // Start time in seconds
   
   // Store stake with precision up to 6 decimal places for small amounts (lamports)
   const formattedStake = parseFloat(stake.toFixed(6));
+  
+  const initialBoard = {
+    whiteTime: startTime,
+    blackTime: startTime,
+    currentTurn: 'white' as PieceColor,
+    // Other board state properties will be added by the game engine
+  } as unknown as ChessBoard;
   
   const { data, error } = await supabase
     .from('chess_games')
     .insert({
       host_id: hostId,
-      time_control: timeControl,
+      time_control: timeControl.type,
       time_white: startTime,
       time_black: startTime,
       stake: formattedStake,
@@ -74,6 +82,31 @@ export const createGame = async (params: CreateGameParams): Promise<GameData | n
   }
   
   console.log("Game created successfully:", data);
+  
+  return data.id;
+};
+
+// Get a game by ID
+export const getGameById = async (gameId: string): Promise<GameData | null> => {
+  console.log(`Fetching game with ID: ${gameId}`);
+  
+  const { data, error } = await supabase
+    .from('chess_games')
+    .select('*')
+    .eq('id', gameId)
+    .single();
+    
+  if (error) {
+    console.error('Error fetching game:', error);
+    return null;
+  }
+  
+  if (!data) {
+    console.log(`No game found with ID: ${gameId}`);
+    return null;
+  }
+  
+  console.log(`Found game with ID: ${gameId}`, data);
   
   return {
     ...data,
@@ -291,6 +324,5 @@ export const subscribeToGame = (gameId: string, callback: (payload: any) => void
     )
     .subscribe();
 };
-
 
 export { supabase };
