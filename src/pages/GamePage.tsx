@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
@@ -22,7 +23,8 @@ import {
   joinGame, 
   startGame,
   checkGameInactivity,
-  abortGame
+  abortGame,
+  getGameById
 } from '../utils/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
@@ -143,49 +145,51 @@ const GamePage: React.FC<GamePageProps> = ({
               initialBoard.blackTime = timeControl.startTime;
               initialBoard.isTimerRunning = false;
               
-              const newGameData = await createGame({
-                hostId: wallet.publicKey,
-                timeControl: timeControl.type,
-                timeIncrement: timeControl.increment,
-                stake: stake,
-                initialBoard
-              });
+              const newGameId = await createGame(
+                wallet.publicKey,
+                timeControl,
+                stake
+              );
               
-              if (newGameData) {
+              if (newGameId) {
                 setBoard(initialBoard);
-                setGameData(newGameData);
-                setGameState('waiting');
                 
-                navigate(`/game/${newGameData.id}`, { 
-                  replace: true,
-                  state: {
-                    timeControl,
-                    stake,
-                    playerColor: 'white'
-                  }
-                });
-                
-                toast({
-                  title: "Game Created",
-                  description: `Successfully staked ${stake.toFixed(4)} SOL. Waiting for an opponent to join.`,
-                });
-                
-                const subscription = subscribeToGame(newGameData.id, (payload) => {
-                  const updatedGame = payload.new as GameData;
+                const newGameData = await getGameById(newGameId);
+                if (newGameData) {
+                  setGameData(newGameData);
+                  setGameState('waiting');
                   
-                  if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
-                    setOpponentJoined(true);
-                    setGameState('countdown');
-                    toast({
-                      title: "Opponent Joined",
-                      description: "The game will start shortly!",
-                    });
-                  }
+                  navigate(`/game/${newGameData.id}`, { 
+                    replace: true,
+                    state: {
+                      timeControl,
+                      stake,
+                      playerColor: 'white'
+                    }
+                  });
                   
-                  setGameData(updatedGame);
-                });
-                
-                setSubscription(subscription);
+                  toast({
+                    title: "Game Created",
+                    description: `Successfully staked ${stake.toFixed(4)} SOL. Waiting for an opponent to join.`,
+                  });
+                  
+                  const subscription = subscribeToGame(newGameData.id, (payload) => {
+                    const updatedGame = payload.new as GameData;
+                    
+                    if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
+                      setOpponentJoined(true);
+                      setGameState('countdown');
+                      toast({
+                        title: "Opponent Joined",
+                        description: "The game will start shortly!",
+                      });
+                    }
+                    
+                    setGameData(updatedGame);
+                  });
+                  
+                  setSubscription(subscription);
+                }
               }
             } else {
               toast({
@@ -281,48 +285,51 @@ const GamePage: React.FC<GamePageProps> = ({
         initialBoard.blackTime = timeControl.startTime;
         initialBoard.isTimerRunning = false;
         
-        createGame({
-          hostId: wallet.publicKey,
-          timeControl: timeControl.type,
-          timeIncrement: timeControl.increment,
-          stake: stake,
-          initialBoard
-        }).then(data => {
-          if (data) {
+        createGame(
+          wallet.publicKey,
+          timeControl,
+          stake
+        ).then(newGameId => {
+          if (newGameId) {
             setBoard(initialBoard);
-            setGameData(data);
-            setGameState('waiting');
             
-            navigate(`/game/${data.id}`, { 
-              replace: true,
-              state: {
-                timeControl,
-                stake,
-                playerColor: 'white'
-              }
-            });
-            
-            toast({
-              title: "Game Created",
-              description: `Waiting for an opponent to join`,
-            });
-            
-            const subscription = subscribeToGame(data.id, (payload) => {
-              const updatedGame = payload.new as GameData;
-              
-              if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
-                setOpponentJoined(true);
-                setGameState('countdown');
-                toast({
-                  title: "Opponent Joined",
-                  description: "The game will start shortly!",
+            getGameById(newGameId).then(data => {
+              if (data) {
+                setGameData(data);
+                setGameState('waiting');
+                
+                navigate(`/game/${data.id}`, { 
+                  replace: true,
+                  state: {
+                    timeControl,
+                    stake,
+                    playerColor: 'white'
+                  }
                 });
+                
+                toast({
+                  title: "Game Created",
+                  description: `Waiting for an opponent to join`,
+                });
+                
+                const subscription = subscribeToGame(data.id, (payload) => {
+                  const updatedGame = payload.new as GameData;
+                  
+                  if (updatedGame.opponent_id && updatedGame.status === 'active' && !opponentJoined) {
+                    setOpponentJoined(true);
+                    setGameState('countdown');
+                    toast({
+                      title: "Opponent Joined",
+                      description: "The game will start shortly!",
+                    });
+                  }
+                  
+                  setGameData(updatedGame);
+                });
+                
+                setSubscription(subscription);
               }
-              
-              setGameData(updatedGame);
             });
-            
-            setSubscription(subscription);
           }
         });
       } else if (gameId !== 'practice') {
@@ -347,31 +354,38 @@ const GamePage: React.FC<GamePageProps> = ({
           });
         }
         
-        const subscription = subscribeToGame(gameId, (payload) => {
-          const updatedGame = payload.new as GameData;
-          
-          setGameData(updatedGame);
-          
-          if (updatedGame.status === 'active' && !opponentJoined && updatedGame.opponent_id) {
-            setOpponentJoined(true);
-            setGameState('countdown');
-          } else if (updatedGame.status === 'completed') {
-            setGameState('completed');
-            const isWinner = updatedGame.winner_id === wallet.publicKey;
-            setGameWinner(isWinner ? 'you' : updatedGame.current_turn === 'white' ? 'black' : 'white');
-            setShowVictoryModal(true);
-          } else if (updatedGame.status === 'aborted') {
-            setGameState('aborted');
-            toast({
-              title: "Game Aborted",
-              description: "The game was aborted.",
-              variant: "destructive",
+        getGameById(gameId).then(game => {
+          if (game) {
+            setGameData(game);
+            setBoard(game.board_state);
+            
+            const subscription = subscribeToGame(gameId, (payload) => {
+              const updatedGame = payload.new as GameData;
+              
+              setGameData(updatedGame);
+              
+              if (updatedGame.status === 'active' && !opponentJoined && updatedGame.opponent_id) {
+                setOpponentJoined(true);
+                setGameState('countdown');
+              } else if (updatedGame.status === 'completed') {
+                setGameState('completed');
+                const isWinner = updatedGame.winner_id === wallet.publicKey;
+                setGameWinner(isWinner ? 'you' : updatedGame.current_turn === 'white' ? 'black' : 'white');
+                setShowVictoryModal(true);
+              } else if (updatedGame.status === 'aborted') {
+                setGameState('aborted');
+                toast({
+                  title: "Game Aborted",
+                  description: "The game was aborted.",
+                  variant: "destructive",
+                });
+                navigate('/');
+              }
             });
-            navigate('/');
+            
+            setSubscription(subscription);
           }
         });
-        
-        setSubscription(subscription);
       }
     }
     

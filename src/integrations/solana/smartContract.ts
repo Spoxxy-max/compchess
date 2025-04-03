@@ -98,8 +98,18 @@ class SolanaGameContract implements GameContract {
     return true;
   }
   
-  async withdrawWinnings(gameId: string): Promise<boolean> {
-    console.log(`[CONTRACT] Withdrawing winnings from game ${gameId}`);
+  async claimDraw(gameId: string, reason: string): Promise<boolean> {
+    console.log(`[CONTRACT] Claiming draw in game ${gameId} with reason: ${reason}`);
+    return true;
+  }
+  
+  async abortGame(gameId: string, reason: string): Promise<boolean> {
+    console.log(`[CONTRACT] Aborting game ${gameId} with reason: ${reason}`);
+    return true;
+  }
+  
+  async withdrawFunds(gameId: string): Promise<boolean> {
+    console.log(`[CONTRACT] Withdrawing funds from game ${gameId}`);
     return true;
   }
   
