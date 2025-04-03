@@ -8,12 +8,13 @@ import { Slider } from "@/components/ui/slider";
 import { TimeControl } from '../utils/chessTypes';
 import { formatTime, timeControlOptions } from '../utils/chessUtils';
 import { Timer, User, Loader2, SlidersHorizontal, CoinsIcon } from 'lucide-react';
-import { getAvailableGames, GameData, joinGame } from '../utils/supabaseClient';
+import { getAvailableGames, GameData, joinGame, getGameById } from '../utils/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
 import JoinStakeConfirmationModal from './JoinStakeConfirmationModal';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { useNavigate } from 'react-router-dom';
 
 interface JoinGameModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   
   const { toast } = useToast();
   const { publicKey } = useWallet();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
@@ -96,10 +98,21 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
     }
   };
 
-  const handleJoinGameClick = () => {
+  const handleJoinGameClick = async () => {
     if (selectedGameId) {
-      const game = availableGames.find(game => game.id === selectedGameId);
-      if (game) {
+      try {
+        // Fetch the full game details
+        const game = await getGameById(selectedGameId);
+        
+        if (!game) {
+          toast({
+            title: "Error",
+            description: "The selected game could not be found",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         console.log("Selected game for joining:", game);
         
         // Find the matching time control option or create a custom one
@@ -118,6 +131,13 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
         setSelectedGame(game);
         setSelectedTimeControl(timeControlOption);
         setIsStakeConfirmationOpen(true);
+      } catch (error) {
+        console.error("Error fetching game details:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load game details",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -136,20 +156,13 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
       console.log("Confirming stake to join game:", gameId);
       
       // Join the game in Supabase
-      const joined = await joinGame(gameId, publicKey.toString());
+      // Note: The actual joining is now handled in JoinStakeConfirmationModal
+      // to ensure it only happens after a successful stake transaction
+      onJoinGame(gameId, selectedGame.stake, selectedTimeControl);
+      setIsStakeConfirmationOpen(false);
+      onClose();
       
-      if (joined) {
-        console.log("Successfully joined game in database");
-        onJoinGame(gameId, selectedGame.stake, selectedTimeControl);
-        setIsStakeConfirmationOpen(false);
-        onClose();
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to join the game",
-          variant: "destructive",
-        });
-      }
+      // The redirect is now handled in JoinStakeConfirmationModal
     } catch (error) {
       console.error("Error joining game:", error);
       toast({

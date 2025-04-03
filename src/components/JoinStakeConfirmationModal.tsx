@@ -8,6 +8,8 @@ import { createStakingTransaction } from '@/integrations/solana/smartContract';
 import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { joinGame } from '@/utils/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 interface JoinStakeConfirmationModalProps {
   isOpen: boolean;
@@ -31,6 +33,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const { publicKey, signTransaction } = useWallet();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const formatStakeAmount = (amount: number) => {
     if (amount < 0.001) {
@@ -100,6 +103,15 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
       
       console.log("Transaction confirmed successfully:", confirmation);
       
+      // Update the game in the database to add the opponent
+      if (publicKey) {
+        const joinResult = await joinGame(gameId, publicKey.toString());
+        if (!joinResult) {
+          throw new Error("Failed to join the game in the database");
+        }
+        console.log("Successfully joined game in the database");
+      }
+      
       toast({
         title: "Stake Successful",
         description: `Successfully staked ${formatStakeAmount(stake)} SOL to join the game`,
@@ -108,6 +120,16 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
       // Close modal immediately and redirect
       onClose();
       onConfirm(gameId);
+      
+      // Navigate directly to the game page after successful join
+      navigate(`/game/${gameId}`, {
+        state: {
+          timeControl: timeControlObject,
+          stake: stake,
+          playerColor: 'black', // Joining player is black
+          gameId
+        }
+      });
     } catch (error: any) {
       console.error("Error processing join stake:", error);
       

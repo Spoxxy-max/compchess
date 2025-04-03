@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -323,6 +324,43 @@ export const subscribeToGame = (gameId: string, callback: (payload: any) => void
       callback
     )
     .subscribe();
+};
+
+// Set up realtime synchronization for the chess game
+export const setupGameRealtime = (gameId: string, onGameUpdate: (game: GameData) => void) => {
+  console.log(`Setting up realtime sync for game: ${gameId}`);
+  
+  // Create a channel subscription for this specific game
+  const channel = supabase
+    .channel(`game-updates:${gameId}`)
+    .on('postgres_changes', 
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chess_games',
+        filter: `id=eq.${gameId}`
+      },
+      async (payload) => {
+        console.log('Game update received:', payload);
+        
+        // Fetch the latest game state to ensure we have complete data
+        const updatedGame = await getGameById(gameId);
+        
+        if (updatedGame) {
+          console.log('Forwarding updated game state to UI');
+          onGameUpdate(updatedGame);
+        }
+      }
+    )
+    .subscribe();
+    
+  console.log('Realtime subscription established');
+  
+  // Return unsubscribe function
+  return () => {
+    console.log('Cleaning up realtime subscription');
+    supabase.removeChannel(channel);
+  };
 };
 
 export { supabase };
