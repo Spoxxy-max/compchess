@@ -1,22 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { TimeControl } from '../utils/chessTypes';
-import { formatTime, timeControlOptions } from '../utils/chessUtils';
-import { Timer, User, Loader2, SlidersHorizontal, CoinsIcon } from 'lucide-react';
-import { getAllGames, GameData, joinGame, getGameById } from '../utils/supabaseClient';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Clock, Search, ChevronDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
-import JoinStakeConfirmationModal from './JoinStakeConfirmationModal';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Label } from "@/components/ui/label";
-import { useNavigate } from 'react-router-dom';
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+import { getAllGames, getGamesCreatedByUser, GameData } from '../utils/supabaseClient';
+import { timeControlOptions } from '../utils/chessUtils';
+import { TimeControl } from '../utils/chessTypes';
 
 interface JoinGameModalProps {
   isOpen: boolean;
@@ -25,426 +20,233 @@ interface JoinGameModalProps {
 }
 
 const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGame }) => {
-  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [availableGames, setAvailableGames] = useState<GameData[]>([]);
   const [filteredGames, setFilteredGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isStakeConfirmationOpen, setIsStakeConfirmationOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<GameData | null>(null);
-  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(null);
-  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  
-  // Filter states
-  const [maxStake, setMaxStake] = useState<number>(10);
-  const [stakeRange, setStakeRange] = useState<[number, number]>([0, 10]);
-  const [timeControlFilter, setTimeControlFilter] = useState<string[]>([]);
-  const [showOnlyMyGames, setShowOnlyMyGames] = useState<boolean>(false);
-  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showMyGames, setShowMyGames] = useState(false);
+  const { wallet, publicKey } = useWallet();
   const { toast } = useToast();
-  const { publicKey } = useWallet();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAvailableGames();
-    }
-  }, [isOpen]);
-
-  // Apply filters to available games
-  useEffect(() => {
-    if (availableGames.length > 0) {
-      let filtered = [...availableGames];
-      
-      // Apply stake filter
-      filtered = filtered.filter(game => 
-        game.stake >= stakeRange[0] && game.stake <= stakeRange[1]
-      );
-      
-      // Apply time control filter if any are selected
-      if (timeControlFilter.length > 0) {
-        filtered = filtered.filter(game => 
-          timeControlFilter.includes(game.time_control)
-        );
-      }
-      
-      // Apply "Games Created by Me" filter if selected
-      if (showOnlyMyGames && publicKey) {
-        filtered = filtered.filter(game => 
-          game.host_id === publicKey.toString()
-        );
-      }
-      
-      setFilteredGames(filtered);
-    }
-  }, [availableGames, stakeRange, timeControlFilter, showOnlyMyGames, publicKey]);
-
-  // Calculate max stake for slider
-  useEffect(() => {
-    if (availableGames.length > 0) {
-      const maxGameStake = Math.max(...availableGames.map(game => game.stake));
-      setMaxStake(Math.max(maxGameStake, 0.1));
-      // Initialize stake range to include all games
-      setStakeRange([0, maxGameStake]);
-    }
-  }, [availableGames]);
-
-  const fetchAvailableGames = async () => {
+  const fetchGames = async () => {
     setLoading(true);
     try {
-      // Get ALL games (including those created by the user)
       const games = await getAllGames();
-      console.log("All games fetched:", games);
       setAvailableGames(games);
       setFilteredGames(games);
     } catch (error) {
-      console.error("Error fetching games:", error);
+      console.error('Error fetching games:', error);
       toast({
-        title: "Error",
-        description: "Failed to load available games",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Could not load available games',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleJoinGameClick = async () => {
-    if (selectedGameId) {
-      try {
-        // Fetch the full game details
-        const game = await getGameById(selectedGameId);
-        
-        if (!game) {
-          toast({
-            title: "Error",
-            description: "The selected game could not be found",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        console.log("Selected game for joining:", game);
-        
-        // Check if this is user's own game and it has an opponent
-        if (publicKey && game.host_id === publicKey.toString() && game.opponent_id) {
-          // Navigate directly to the game if it's the user's game and someone has joined
-          navigate(`/game/${game.id}`, {
-            state: {
-              timeControl: timeControlOptions.find(
-                option => option.type === game.time_control
-              ),
-              stake: game.stake,
-              playerColor: 'white',
-              gameId: game.id
-            }
-          });
-          onClose();
-          return;
-        }
-        
-        // Check if the user is trying to join their own game
-        if (publicKey && game.host_id === publicKey.toString() && !game.opponent_id) {
-          toast({
-            title: "Cannot Join",
-            description: "You cannot join your own game. Please wait for someone else to join.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // Find the matching time control option or create a custom one
-        const timeControlOption = timeControlOptions.find(
-          option => option.type === game.time_control
-        ) || {
-          type: 'custom',
-          startTime: game.time_white,
-          increment: 0, // We don't have this info directly
-          label: `Custom - ${Math.floor(game.time_white / 60)}:${String(game.time_white % 60).padStart(2, '0')}`
-        };
-        
-        console.log("Time control for game:", timeControlOption);
-        console.log("Stake amount for game:", game.stake);
-        
-        setSelectedGame(game);
-        setSelectedTimeControl(timeControlOption);
-        setIsStakeConfirmationOpen(true);
-      } catch (error) {
-        console.error("Error fetching game details:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load game details",
-          variant: "destructive",
-        });
+  useEffect(() => {
+    if (isOpen) {
+      fetchGames();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!publicKey) return;
+
+    const applyFilters = async () => {
+      let filtered = [...availableGames];
+
+      // Apply "My Games" filter
+      if (showMyGames && publicKey) {
+        const userGames = await getGamesCreatedByUser(publicKey.toString());
+        filtered = userGames;
       }
-    }
-  };
 
-  const handleConfirmStake = async (gameId: string) => {
-    if (!publicKey || !selectedGame || !selectedTimeControl) {
-      console.error("Missing required data to join game:", {
-        hasPublicKey: !!publicKey,
-        hasSelectedGame: !!selectedGame,
-        hasTimeControl: !!selectedTimeControl
-      });
-      return;
-    }
-    
-    try {
-      console.log("Confirming stake to join game:", gameId);
-      
-      // Join the game in Supabase
-      // Note: The actual joining is now handled in JoinStakeConfirmationModal
-      // to ensure it only happens after a successful stake transaction
-      onJoinGame(gameId, selectedGame.stake, selectedTimeControl);
-      setIsStakeConfirmationOpen(false);
-      onClose();
-      
-      // The redirect is now handled in JoinStakeConfirmationModal
-    } catch (error) {
-      console.error("Error joining game:", error);
-      toast({
-        title: "Error",
-        description: "Failed to join the game",
-        variant: "destructive",
-      });
-    }
-  };
+      // Apply search filter
+      if (searchTerm.trim() !== '') {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(
+          game => 
+            game.host_id.toLowerCase().includes(term) ||
+            (game.time_control && game.time_control.toLowerCase().includes(term))
+        );
+      }
 
-  const handleRefreshGames = () => {
-    fetchAvailableGames();
-  };
-
-  const handleTimeControlFilterToggle = (timeControlType: string) => {
-    if (timeControlFilter.includes(timeControlType)) {
-      setTimeControlFilter(timeControlFilter.filter(t => t !== timeControlType));
-    } else {
-      setTimeControlFilter([...timeControlFilter, timeControlType]);
-    }
-  };
-
-  // Format time control label for display
-  const getTimeControlLabel = (game: GameData): string => {
-    const timeInMinutes = Math.floor(game.time_white / 60);
-    const timeInSeconds = game.time_white % 60;
-    
-    // Find matching predefined time control
-    const timeControlOption = timeControlOptions.find(
-      option => option.type === game.time_control
-    );
-    
-    if (timeControlOption) {
-      return timeControlOption.label;
-    }
-    
-    // Format custom time control
-    return `${timeInMinutes}:${String(timeInSeconds).padStart(2, '0')}`;
-  };
-
-  // Get game status for display
-  const getGameStatus = (game: GameData, currentUserAddress?: string): { label: string; variant: "default" | "secondary" | "outline" } => {
-    if (game.status === 'active' && game.host_id && game.opponent_id) {
-      return { 
-        label: "Joined", 
-        variant: "default" 
-      };
-    }
-    
-    if (game.status === 'waiting') {
-      return { 
-        label: "Waiting", 
-        variant: "secondary" 
-      };
-    }
-    
-    return { 
-      label: game.status.charAt(0).toUpperCase() + game.status.slice(1), 
-      variant: "outline" 
+      setFilteredGames(filtered);
     };
+
+    applyFilters();
+  }, [searchTerm, showMyGames, availableGames, publicKey]);
+
+  const handleJoinGame = (game: GameData) => {
+    const timeControl = timeControlOptions.find(tc => tc.type === game.time_control) || timeControlOptions[0];
+    onJoinGame(game.id, game.stake, timeControl);
   };
 
-  // Check if this is the user's game
-  const isUserGame = (game: GameData): boolean => {
-    return publicKey?.toString() === game.host_id;
+  const formatTimeControl = (timeControlStr: string) => {
+    const tc = timeControlOptions.find(t => t.type === timeControlStr);
+    if (!tc) return timeControlStr;
+    
+    const minutes = Math.floor(tc.startTime / 60);
+    const seconds = tc.startTime % 60;
+    const secondsStr = seconds > 0 ? `:${seconds}` : '';
+    
+    return `${minutes}${secondsStr} + ${tc.increment}`;
+  };
+
+  const formatWalletAddress = (address: string) => {
+    if (!address) return '';
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
+
+  const getGameStatusLabel = (game: GameData) => {
+    if (game.status === 'waiting') {
+      return (
+        <Badge variant="outline" className="bg-amber-900/20 text-amber-500 border-amber-500/30">
+          Waiting
+        </Badge>
+      );
+    } else if (game.status === 'active') {
+      return (
+        <Badge variant="outline" className="bg-green-900/20 text-green-500 border-green-500/30">
+          Joined
+        </Badge>
+      );
+    } else if (game.status === 'completed') {
+      return (
+        <Badge variant="outline" className="bg-blue-900/20 text-blue-500 border-blue-500/30">
+          Completed
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="bg-red-900/20 text-red-500 border-red-500/30">
+          Aborted
+        </Badge>
+      );
+    }
+  };
+
+  const isMyGame = (game: GameData) => {
+    return publicKey && game.host_id === publicKey.toString();
+  };
+
+  const canJoinGame = (game: GameData) => {
+    if (!publicKey) return false;
+    if (isMyGame(game)) return true; // Allow joining your own games
+    return game.status === 'waiting'; // Can only join games in waiting status
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-card sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Join Game</DialogTitle>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-medium">Available Games</h3>
-              <div className="flex space-x-2">
-                <Sheet open={isFilterSheetOpen} onOpenChange={setIsFilterSheetOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex items-center gap-1">
-                      <SlidersHorizontal className="h-4 w-4" />
-                      <span>Filter</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Filter Games</SheetTitle>
-                    </SheetHeader>
-                    <div className="py-4 space-y-6">
-                      <div className="space-y-4">
-                        <Label className="text-sm font-medium">Stake Amount (SOL)</Label>
-                        <div className="flex justify-between text-sm">
-                          <span>{stakeRange[0]} SOL</span>
-                          <span>{stakeRange[1]} SOL</span>
-                        </div>
-                        <Slider 
-                          defaultValue={[0, maxStake]} 
-                          value={stakeRange}
-                          max={maxStake} 
-                          step={0.01} 
-                          onValueChange={(value) => setStakeRange([value[0], value[1]])} 
-                          className="my-2"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Time Control</Label>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          {timeControlOptions.map(option => (
-                            <Button 
-                              key={option.type}
-                              variant={timeControlFilter.includes(option.type) ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handleTimeControlFilterToggle(option.type)}
-                              className="justify-center text-sm"
-                            >
-                              {option.label}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id="show-my-games" 
-                            checked={showOnlyMyGames}
-                            onCheckedChange={(checked) => setShowOnlyMyGames(checked === true)}
-                          />
-                          <Label htmlFor="show-my-games" className="text-sm font-medium cursor-pointer">
-                            Games Created by Me
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex justify-end mt-4 space-x-2">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          setStakeRange([0, maxStake]);
-                          setTimeControlFilter([]);
-                          setShowOnlyMyGames(false);
-                        }}
-                      >
-                        Reset
-                      </Button>
-                      <Button onClick={() => setIsFilterSheetOpen(false)}>Apply</Button>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-                
-                <Button variant="outline" size="sm" onClick={handleRefreshGames}>
-                  Refresh
-                </Button>
-              </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold">Join a Game</DialogTitle>
+          <DialogDescription>
+            Browse available games or find one by wallet address or time control.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search games..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
             </div>
             
-            {loading ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-solana" />
-                <p className="text-gray-400">Loading available games...</p>
-              </div>
-            ) : filteredGames.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <p>No games available to join</p>
-                <p className="text-sm mt-2">Create a new game or check back later</p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                {filteredGames.map((game) => {
-                  const timeControlLabel = getTimeControlLabel(game);
-                  const gameStatus = getGameStatus(game, publicKey?.toString());
-                  const isMyGame = isUserGame(game);
-                  
-                  return (
-                    <Card
-                      key={game.id}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        selectedGameId === game.id
-                          ? 'border-solana bg-secondary/50'
-                          : 'hover:bg-secondary/30'
-                      }`}
-                      onClick={() => setSelectedGameId(game.id)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center space-x-2">
-                          <User className="w-4 h-4" />
-                          <span className="font-medium">
-                            {game.host_id.substring(0, 8)}...
-                            {isMyGame && <span className="ml-1 text-xs text-solana">(You)</span>}
-                          </span>
-                        </div>
-                        <Badge variant={gameStatus.variant}>{gameStatus.label}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <div className="flex items-center space-x-2 text-sm">
-                          <Timer className="w-4 h-4" />
-                          <span>{formatTime(game.time_white)}</span>
-                        </div>
-                        <span className="text-sm text-gray-400">
-                          {timeControlLabel}
-                        </span>
-                      </div>
-                      <div className="flex justify-end mt-2">
-                        <span className="font-semibold text-solana">{game.stake} SOL</span>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="my-games"
+                checked={showMyGames}
+                onCheckedChange={setShowMyGames}
+              />
+              <Label htmlFor="my-games">Games Created by Me</Label>
+            </div>
           </div>
+          
+          <div className="border rounded-md overflow-hidden">
+            <div className="bg-secondary/30 px-4 py-2 flex justify-between items-center text-sm font-medium">
+              <div className="w-1/4">Host</div>
+              <div className="w-1/4 text-center">Time Control</div>
+              <div className="w-1/4 text-center">Stake</div>
+              <div className="w-1/4 text-center">Status</div>
+            </div>
+            
+            <div className="divide-y divide-border max-h-[280px] overflow-y-auto">
+              {loading ? (
+                <div className="p-8 flex justify-center items-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredGames.length > 0 ? (
+                filteredGames.map(game => (
+                  <div key={game.id} className="px-4 py-3 flex justify-between items-center hover:bg-secondary/10 transition-colors">
+                    <div className="w-1/4 truncate">
+                      {formatWalletAddress(game.host_id)}
+                      {isMyGame(game) && (
+                        <span className="text-xs text-muted-foreground ml-1">(You)</span>
+                      )}
+                    </div>
+                    <div className="w-1/4 text-center flex justify-center items-center">
+                      <Clock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                      {formatTimeControl(game.time_control)}
+                    </div>
+                    <div className="w-1/4 text-center">
+                      {game.stake > 0 ? (
+                        <span className="text-solana">{game.stake} SOL</span>
+                      ) : (
+                        <span className="text-muted-foreground">Free</span>
+                      )}
+                    </div>
+                    <div className="w-1/4 flex justify-end items-center gap-2">
+                      {getGameStatusLabel(game)}
+                      {canJoinGame(game) && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleJoinGame(game)}
+                          className="whitespace-nowrap bg-solana hover:bg-solana-dark text-white text-xs py-1 h-7"
+                        >
+                          {isMyGame(game) && game.status === 'active' ? 'Resume' : 'Join'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-muted-foreground">
+                  {showMyGames 
+                    ? "You haven't created any games yet." 
+                    : "No available games found. Create a new game!"}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              className="bg-solana hover:bg-solana-dark text-white" 
-              onClick={handleJoinGameClick}
-              disabled={!selectedGameId}
-            >
-              {selectedGameId && filteredGames.find(g => g.id === selectedGameId)?.host_id === publicKey?.toString() && 
-               filteredGames.find(g => g.id === selectedGameId)?.opponent_id 
-                ? 'Start Game' 
-                : 'Join Game'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {selectedGame && selectedTimeControl && (
-        <JoinStakeConfirmationModal
-          isOpen={isStakeConfirmationOpen}
-          onClose={() => setIsStakeConfirmationOpen(false)}
-          onConfirm={handleConfirmStake}
-          gameId={selectedGame.id}
-          stake={selectedGame.stake}
-          timeControl={getTimeControlLabel(selectedGame)}
-          timeControlObject={selectedTimeControl}
-        />
-      )}
-    </>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={fetchGames}
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
+            Refresh
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

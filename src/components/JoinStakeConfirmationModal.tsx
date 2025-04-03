@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TimeControl } from '../utils/chessTypes';
-import { joinGame } from '../utils/supabaseClient';
+import { joinGame, getGameById } from '../utils/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Loader2 } from 'lucide-react';
@@ -46,6 +46,33 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
     setIsProcessing(true);
 
     try {
+      // Check if the user is already joined to this game
+      const gameData = await getGameById(gameId);
+      
+      if (gameData && gameData.opponent_id === publicKey.toString()) {
+        console.log("User is already joined to this game, navigating directly");
+        
+        toast({
+          title: "Rejoining Game",
+          description: "You've already joined this game. Reconnecting...",
+        });
+        
+        // Navigate directly without requiring another join or stake
+        navigate(`/game/${gameId}`, {
+          state: {
+            timeControl: timeControlObject,
+            stake: stake,
+            playerColor: 'black',
+            gameId: gameId
+          }
+        });
+        
+        onConfirm(gameId);
+        onClose();
+        setIsProcessing(false);
+        return;
+      }
+
       // Join the game in the database first
       const joinSuccess = await joinGame(gameId, publicKey.toString());
       

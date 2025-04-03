@@ -38,16 +38,35 @@ const boardToJson = (board: ChessBoard): Json => {
 
 // Convert JSON back to ChessBoard
 const jsonToBoard = (json: Json): ChessBoard => {
-  return json as unknown as ChessBoard;
+  return json as unknown as Json;
 };
 
-// Create a new game in Supabase
+// Create a new game in Supabase - with duplicate check
 export const createGame = async (
   hostId: string,
   timeControl: TimeControl,
   stake: number
 ): Promise<string | null> => {
   console.log("Creating new game with params:", { hostId, timeControl, stake });
+  
+  // First, check if a similar game already exists for this host within the last minute
+  // This helps prevent duplicate games from being created accidentally
+  const { data: existingGames, error: checkError } = await supabase
+    .from('chess_games')
+    .select('id')
+    .eq('host_id', hostId)
+    .eq('status', 'waiting')
+    .eq('time_control', timeControl.type)
+    .eq('stake', stake)
+    .gt('created_at', new Date(Date.now() - 60000).toISOString()) // Created within the last minute
+    .order('created_at', { ascending: false });
+    
+  if (checkError) {
+    console.error('Error checking for existing games:', checkError);
+  } else if (existingGames && existingGames.length > 0) {
+    console.log('Found existing game, returning that instead of creating a new one:', existingGames[0].id);
+    return existingGames[0].id;
+  }
   
   const startTime = timeControl.startTime; // Start time in seconds
   
@@ -128,7 +147,6 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     .from('chess_games')
     .select('*')
     .eq('id', gameId)
-    .eq('status', 'waiting')
     .single();
     
   if (gameError || !game) {
@@ -136,9 +154,21 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     return false;
   }
   
+  // If the game is active and user is already the opponent, return true (rejoining an existing game)
+  if (game.status === 'active' && game.opponent_id === opponentId) {
+    console.log(`User ${opponentId} is already joined to game ${gameId}, allowing rejoin`);
+    return true;
+  }
+  
   // Prevent joining own game
   if (game.host_id === opponentId) {
     console.error('Cannot join your own game');
+    return false;
+  }
+  
+  // Only update if the game is in waiting status
+  if (game.status !== 'waiting') {
+    console.error(`Game ${gameId} is not in 'waiting' status, current status: ${game.status}`);
     return false;
   }
   
@@ -226,6 +256,35 @@ export const getAvailableGames = async (currentUserId?: string): Promise<GameDat
   }));
 };
 
+// Get games created by a specific user
+export const getGamesCreatedByUser = async (userId: string): Promise<GameData[]> => {
+  console.log(`Fetching games created by user: ${userId}`);
+  
+  const { data, error } = await supabase
+    .from('chess_games')
+    .select('*')
+    .eq('host_id', userId)
+    .or('status.eq.waiting,status.eq.active')
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching user created games:', error);
+    return [];
+  }
+  
+  console.log(`Found ${data?.length || 0} games created by user ${userId}`);
+  
+  return (data || []).map(game => ({
+    ...game,
+    stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
+    board_state: jsonToBoard(game.board_state),
+    move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
+    status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
+    current_turn: game.current_turn as PieceColor,
+    last_activity: new Date().toISOString()
+  }));
+};
+
 // Start the game after countdown
 export const startGame = async (gameId: string): Promise<boolean> => {
   const { error } = await supabase
@@ -243,12 +302,14 @@ export const startGame = async (gameId: string): Promise<boolean> => {
   return true;
 };
 
-// Update game state
+// Update game state - with comprehensive board state update
 export const updateGameState = async (
   gameId: string, 
   boardState: ChessBoard, 
   moveHistory: string[]
 ): Promise<boolean> => {
+  console.log(`Updating game state for game ${gameId}, current turn: ${boardState.currentTurn}`);
+  
   const { error } = await supabase
     .from('chess_games')
     .update({ 
@@ -265,6 +326,7 @@ export const updateGameState = async (
     return false;
   }
   
+  console.log(`Game state updated successfully for game ${gameId}`);
   return true;
 };
 
