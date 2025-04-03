@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/Header';
 import NewGameModal from '../components/NewGameModal';
 import StakeConfirmationModal from '../components/StakeConfirmationModal';
@@ -12,29 +12,91 @@ import { timeControlOptions } from '../utils/chessUtils';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useWallet  } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Copy, Check, Share2 } from 'lucide-react';
+import { createGame, getGameById } from '../utils/supabaseClient';
 
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isStakeConfirmationModalOpen, setIsStakeConfirmationModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
   const [isJoinStakeConfirmationModalOpen, setIsJoinStakeConfirmationModalOpen] = useState(false);
+  const [isShareLinkModalOpen, setIsShareLinkModalOpen] = useState(false);
   const [stakeAmount, setStakeAmount] = useState(0);
   const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string>('');
+  const [shareableLink, setShareableLink] = useState<string>('');
+  const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [animationComplete, setAnimationComplete] = useState(false);
-  const { wallet } = useWallet();
+  const { wallet, publicKey } = useWallet();
 
-  const isLoggedIn = wallet?.adapter.connected
+  const isLoggedIn = wallet?.adapter.connected;
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setAnimationComplete(true);
     }, 500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Check if user is navigating from a shared link
+  useEffect(() => {
+    const checkForGameInvite = async () => {
+      const params = new URLSearchParams(location.search);
+      const gameId = params.get('join');
+      
+      if (gameId && isLoggedIn) {
+        // Fetch game data
+        try {
+          const gameData = await getGameById(gameId);
+          
+          if (gameData) {
+            const timeControl = timeControlOptions.find(
+              option => option.type === gameData.time_control
+            ) || timeControlOptions[0];
+            
+            // Show join confirmation
+            setSelectedGameId(gameId);
+            setStakeAmount(gameData.stake);
+            setSelectedTimeControl(timeControl);
+            setIsJoinStakeConfirmationModalOpen(true);
+          } else {
+            toast({
+              title: "Game Not Found",
+              description: "The game you were invited to join doesn't exist or has ended.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching game data:", error);
+          toast({
+            title: "Error",
+            description: "Could not load the game invitation.",
+            variant: "destructive",
+          });
+        }
+      } else if (gameId && !isLoggedIn) {
+        toast({
+          title: "Connect Wallet",
+          description: "Please connect your wallet to join this game.",
+          variant: "default",
+        });
+      }
+    };
+    
+    checkForGameInvite();
+  }, [location, isLoggedIn]);
+
+  const generateShareableLink = (gameId: string) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}?join=${gameId}`;
+  };
 
   const handleNewGame = () => {
     if (isLoggedIn) {
@@ -71,15 +133,42 @@ const Index = () => {
     setIsStakeConfirmationModalOpen(true);
   };
 
-  const handleConfirmStake = () => {
-    // Navigate directly to the game page
-    navigate('/game/new', {
-      state: {
-        timeControl: selectedTimeControl,
-        stake: stakeAmount,
-        playerColor: 'white',
-      },
-    });
+  const handleConfirmStake = async () => {
+    if (!publicKey || !selectedTimeControl) return;
+    
+    try {
+      // Create the game in the database
+      const gameId = await createGame(
+        publicKey.toString(),
+        selectedTimeControl,
+        stakeAmount
+      );
+      
+      if (gameId) {
+        // Generate and show shareable link
+        const link = generateShareableLink(gameId);
+        setShareableLink(link);
+        setIsStakeConfirmationModalOpen(false);
+        setIsShareLinkModalOpen(true);
+        
+        // Navigate to the game page
+        navigate(`/game/${gameId}`, {
+          state: {
+            timeControl: selectedTimeControl,
+            stake: stakeAmount,
+            playerColor: 'white',
+            gameId
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error creating game:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create the game. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
@@ -90,7 +179,7 @@ const Index = () => {
     setIsJoinStakeConfirmationModalOpen(true);
   };
 
-  const handleConfirmJoinStake = (gameId: string) => {
+  const handleConfirmJoinStake = async (gameId: string) => {
     // Navigate directly to the joined game
     navigate(`/game/${gameId}`, {
       state: {
@@ -102,9 +191,20 @@ const Index = () => {
     });
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareableLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const formatTimeControl = (timeControl: TimeControl | null) => {
     if (!timeControl) return '';
-    return `${timeControl.startTime / 60} + ${timeControl.increment}`;
+    
+    const minutes = Math.floor(timeControl.startTime / 60);
+    const seconds = timeControl.startTime % 60;
+    const secondsStr = seconds > 0 ? `:${seconds}` : '';
+    
+    return `${minutes}${secondsStr} + ${timeControl.increment}`;
   };
 
   return (
@@ -280,6 +380,60 @@ const Index = () => {
         timeControl={formatTimeControl(selectedTimeControl)}
         timeControlObject={selectedTimeControl}
       />
+
+      {/* Share Link Modal */}
+      <Dialog open={isShareLinkModalOpen} onOpenChange={setIsShareLinkModalOpen}>
+        <DialogContent className="bg-card sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Share Game Invitation</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-gray-300">
+              Share this link with your friend to invite them to join your game:
+            </p>
+            
+            <div className="flex items-center space-x-2">
+              <Input 
+                value={shareableLink} 
+                readOnly 
+                className="flex-1 bg-secondary/30"
+              />
+              <Button
+                variant="outline" 
+                size="icon" 
+                onClick={handleCopyLink} 
+                className="flex-shrink-0"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            
+            <div className="bg-secondary/40 p-4 rounded-md text-sm space-y-2">
+              <p className="font-medium flex items-center gap-1">
+                <Share2 className="h-4 w-4" />
+                Game ready to play!
+              </p>
+              <p className="text-gray-300">
+                You've been redirected to the game page. Once your friend joins with the link, the game will start automatically.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              onClick={() => setIsShareLinkModalOpen(false)}
+              className="bg-solana hover:bg-solana-dark text-white"
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
