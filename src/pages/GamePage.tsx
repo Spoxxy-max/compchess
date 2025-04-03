@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import ChessBoard from '../components/ChessBoard';
@@ -587,6 +586,7 @@ const GamePage: React.FC<GamePageProps> = ({
       return (
         <div className="flex items-center justify-center h-full">
           <GameStartCountdown 
+            gameId={gameId}
             playerColor={playerColor}
             onCountdownComplete={handleCountdownComplete}
             opponentName={gameData?.host_id.substring(0, 8) + '...' || 'Opponent'}

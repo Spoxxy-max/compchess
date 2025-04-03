@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import CountdownTimer from './CountdownTimer';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
-import { getGameById, GameData, subscribeToGame } from '../utils/supabaseClient';
+import { getGameById, GameData, subscribeToGame, supabase } from '../utils/supabaseClient';
 
 interface GameStartCountdownProps {
   gameId: string;
