@@ -114,6 +114,9 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       
       console.log("Transaction confirmed successfully:", confirmation);
       
+      // Generate a unique game code (6 characters)
+      const gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
       // Create a new game in the database
       const { data: gameData, error } = await supabase
         .from('chess_games')
@@ -126,7 +129,8 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
           status: 'waiting',
           board_state: {}, // Using empty object that will be transformed by boardToJson
           move_history: [],
-          current_turn: 'white'
+          current_turn: 'white',
+          game_code: gameCode
         })
         .select()
         .single();
@@ -141,6 +145,9 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       // Store the game code for display
       if (gameData && gameData.game_code) {
         setGameCode(gameData.game_code);
+      } else if (gameCode) {
+        // Fallback to our generated code if database doesn't return it
+        setGameCode(gameCode);
       }
       
       toast({
