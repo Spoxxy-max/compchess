@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -29,7 +30,7 @@ export interface GameData {
   board_state: ChessBoard;
   move_history: string[];
   current_turn: PieceColor;
-  game_code?: string; // Added game code field
+  game_code?: string; // Define game_code as an optional property
   // We'll handle these fields without database columns
   last_activity?: string; 
   start_time?: string;
@@ -37,7 +38,8 @@ export interface GameData {
 
 // Convert ChessBoard to JSON-compatible object
 const boardToJson = (board: ChessBoard): Json => {
-  // Fix type instantiation error by converting to plain object first
+  // Fix type instantiation error by converting the board to a simple object first
+  // using JSON.parse/stringify to break any circular references
   return JSON.parse(JSON.stringify(board)) as Json;
 };
 
@@ -158,6 +160,9 @@ export const getGameById = async (gameId: string): Promise<GameData | null> => {
   
   console.log(`Found game with ID: ${gameId}`, data);
   
+  // Type assertion to access game_code property
+  const typedData = data as any;
+  
   return {
     ...data,
     board_state: jsonToBoard(data.board_state),
@@ -165,7 +170,7 @@ export const getGameById = async (gameId: string): Promise<GameData | null> => {
     status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: data.current_turn as PieceColor,
     last_activity: new Date().toISOString(),
-    game_code: data.game_code // Ensure we include game_code in the returned object
+    game_code: typedData.game_code // Access game_code safely through typedData
   };
 };
 
@@ -192,6 +197,9 @@ export const getGameByCode = async (gameCode: string): Promise<GameData | null> 
   
   console.log(`Found game with code: ${gameCode}`, data);
   
+  // Type assertion to access game_code property
+  const typedData = data as any;
+  
   return {
     ...data,
     board_state: jsonToBoard(data.board_state),
@@ -199,7 +207,7 @@ export const getGameByCode = async (gameCode: string): Promise<GameData | null> 
     status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: data.current_turn as PieceColor,
     last_activity: new Date().toISOString(),
-    game_code: data.game_code // Ensure we include game_code in the returned object
+    game_code: typedData.game_code // Access game_code safely through typedData
   };
 };
 
@@ -273,17 +281,21 @@ export const getAllGames = async (): Promise<GameData[]> => {
   
   console.log(`Found ${data?.length || 0} available games`);
   
-  return (data || []).map(game => ({
-    ...game,
-    // Ensure stake is properly formatted as a number
-    stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
-    board_state: jsonToBoard(game.board_state),
-    move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
-    status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
-    current_turn: game.current_turn as PieceColor,
-    last_activity: new Date().toISOString(),
-    game_code: game.game_code // Ensure we include game_code in the returned object
-  }));
+  // Use type assertion to properly extract game_code from each item
+  return (data || []).map(game => {
+    const typedGame = game as any;
+    return {
+      ...game,
+      // Ensure stake is properly formatted as a number
+      stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
+      board_state: jsonToBoard(game.board_state),
+      move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
+      status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
+      current_turn: game.current_turn as PieceColor,
+      last_activity: new Date().toISOString(),
+      game_code: typedGame.game_code // Access game_code safely through typedGame
+    };
+  });
 };
 
 // Get available games (excluding games created by the current user) - kept for backward compatibility
@@ -310,17 +322,21 @@ export const getAvailableGames = async (currentUserId?: string): Promise<GameDat
   
   console.log(`Found ${data?.length || 0} available games`);
   
-  return (data || []).map(game => ({
-    ...game,
-    // Ensure stake is properly formatted as a number
-    stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
-    board_state: jsonToBoard(game.board_state),
-    move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
-    status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
-    current_turn: game.current_turn as PieceColor,
-    last_activity: new Date().toISOString(),
-    game_code: game.game_code // Ensure we include game_code in the returned object
-  }));
+  // Use type assertion to properly extract game_code from each item
+  return (data || []).map(game => {
+    const typedGame = game as any;
+    return {
+      ...game,
+      // Ensure stake is properly formatted as a number
+      stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
+      board_state: jsonToBoard(game.board_state),
+      move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
+      status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
+      current_turn: game.current_turn as PieceColor,
+      last_activity: new Date().toISOString(),
+      game_code: typedGame.game_code // Access game_code safely through typedGame
+    };
+  });
 };
 
 // Get games created by a specific user
@@ -341,16 +357,20 @@ export const getGamesCreatedByUser = async (userId: string): Promise<GameData[]>
   
   console.log(`Found ${data?.length || 0} games created by user ${userId}`);
   
-  return (data || []).map(game => ({
-    ...game,
-    stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
-    board_state: jsonToBoard(game.board_state),
-    move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
-    status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
-    current_turn: game.current_turn as PieceColor,
-    last_activity: new Date().toISOString(),
-    game_code: game.game_code // Ensure we include game_code in the returned object
-  }));
+  // Use type assertion to properly extract game_code from each item
+  return (data || []).map(game => {
+    const typedGame = game as any;
+    return {
+      ...game,
+      stake: typeof game.stake === 'string' ? parseFloat(game.stake) : game.stake,
+      board_state: jsonToBoard(game.board_state),
+      move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
+      status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
+      current_turn: game.current_turn as PieceColor,
+      last_activity: new Date().toISOString(),
+      game_code: typedGame.game_code // Access game_code safely through typedGame
+    };
+  });
 };
 
 // Start the game after countdown
