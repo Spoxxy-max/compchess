@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/Header';
@@ -46,13 +45,11 @@ const Index = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Check if user is navigating from a shared link
   useEffect(() => {
     const checkForGameInvite = async () => {
       const params = new URLSearchParams(location.search);
       const gameId = params.get('join');
       
-      // Prevent duplicate processing
       if (gameId && isLoggedIn && !processingInviteGame) {
         setProcessingInviteGame(true);
         
@@ -64,7 +61,6 @@ const Index = () => {
               option => option.type === gameData.time_control
             ) || timeControlOptions[0];
             
-            // Show join confirmation
             setSelectedGameId(gameId);
             setStakeAmount(gameData.stake);
             setSelectedTimeControl(timeControl);
@@ -142,7 +138,6 @@ const Index = () => {
     if (!publicKey || !selectedTimeControl) return;
     
     try {
-      // Create the game in the database
       const gameId = await createGame(
         publicKey.toString(),
         selectedTimeControl,
@@ -150,13 +145,11 @@ const Index = () => {
       );
       
       if (gameId) {
-        // Generate and show shareable link
         const link = generateShareableLink(gameId);
         setShareableLink(link);
         setIsStakeConfirmationModalOpen(false);
         setIsShareLinkModalOpen(true);
         
-        // Navigate to the game page
         navigate(`/game/${gameId}`, {
           state: {
             timeControl: selectedTimeControl,
@@ -185,11 +178,8 @@ const Index = () => {
   };
 
   const handleConfirmJoinStake = async (gameId: string) => {
-    // This function is now handled directly in JoinStakeConfirmationModal
-    // Navigation happens there to avoid multiple dialogs
     console.log("Join stake confirmed for game:", gameId);
     
-    // Just close the modal here, and make sure we clean up any URL parameters
     const url = new URL(window.location.href);
     if (url.searchParams.has('join')) {
       url.searchParams.delete('join');
@@ -213,6 +203,16 @@ const Index = () => {
     return `${minutes}${secondsStr} + ${timeControl.increment}`;
   };
 
+  useEffect(() => {
+    return () => {
+      setIsNewGameModalOpen(false);
+      setIsStakeConfirmationModalOpen(false);
+      setIsJoinGameModalOpen(false);
+      setIsJoinStakeConfirmationModalOpen(false);
+      setIsShareLinkModalOpen(false);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden bg-background">
       <div className="absolute -top-20 -left-20 w-96 h-96 bg-solana/20 rounded-full blur-[120px] animate-pulse" />
@@ -228,8 +228,8 @@ const Index = () => {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(9,9,11,0.1)_0.1px,transparent_0.1px),linear-gradient(to_right,rgba(9,9,11,0.1)_0.1px,transparent_0.1px)] bg-[size:24px_24px] opacity-20" />
 
       <Header
-      onNewGame={handleNewGame}
-      onJoinGame={handleJoinGame}
+        onNewGame={handleNewGame}
+        onJoinGame={handleJoinGame}
       />
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
@@ -387,8 +387,11 @@ const Index = () => {
         timeControlObject={selectedTimeControl}
       />
 
-      {/* Share Link Modal */}
-      <Dialog open={isShareLinkModalOpen} onOpenChange={setIsShareLinkModalOpen}>
+      <Dialog open={isShareLinkModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsShareLinkModalOpen(false);
+        }
+      }}>
         <DialogContent className="bg-card sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Share Game Invitation</DialogTitle>

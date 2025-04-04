@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
@@ -31,6 +31,13 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
   const { publicKey, signTransaction } = useWallet();
   const { toast } = useToast();
   
+  // Reset processing state when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsProcessing(false);
+    }
+  }, [isOpen]);
+  
   const formatStakeAmount = (amount: number) => {
     if (amount < 0.001) {
       return amount.toFixed(6);
@@ -53,6 +60,9 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       });
       return;
     }
+
+    // Prevent multiple clicks
+    if (isProcessing) return;
 
     try {
       setIsProcessing(true);
@@ -132,8 +142,10 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
       });
       
-      // Close modal immediately and redirect
+      // Important: Call onClose first to ensure the modal is closed
       onClose();
+      
+      // Then proceed with onConfirm which might navigate away
       onConfirm();
     } catch (error: any) {
       console.error("Error processing stake:", error);
@@ -152,13 +164,20 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        // Only allow closing if we're not processing
+        if (!open && !isProcessing) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Confirm Stake</DialogTitle>
