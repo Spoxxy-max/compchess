@@ -28,13 +28,18 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
   timeControlObject 
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [hasProcessed, setHasProcessed] = useState(false);
   const { publicKey, signTransaction } = useWallet();
   const { toast } = useToast();
   
-  // Reset processing state when dialog closes
+  // Reset processing state when dialog closes or opens
   useEffect(() => {
     if (!isOpen) {
       setIsProcessing(false);
+      // Don't reset hasProcessed here so we can prevent reopening
+    } else {
+      // Only reset hasProcessed when the dialog is freshly opened
+      setHasProcessed(false);
     }
   }, [isOpen]);
   
@@ -61,8 +66,8 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       return;
     }
 
-    // Prevent multiple clicks
-    if (isProcessing) return;
+    // Prevent multiple clicks or reprocessing
+    if (isProcessing || hasProcessed) return;
 
     try {
       setIsProcessing(true);
@@ -142,11 +147,17 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
       });
       
-      // Important: Call onClose first to ensure the modal is closed
+      // Mark as processed to prevent duplicate processing
+      setHasProcessed(true);
+      
+      // Close the modal first 
       onClose();
       
-      // Then proceed with onConfirm which might navigate away
-      onConfirm();
+      // Then navigate (this avoids the double confirmation issue)
+      setTimeout(() => {
+        onConfirm();
+      }, 100);
+      
     } catch (error: any) {
       console.error("Error processing stake:", error);
       
@@ -170,7 +181,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
 
   return (
     <Dialog 
-      open={isOpen} 
+      open={isOpen && !hasProcessed} 
       onOpenChange={(open) => {
         // Only allow closing if we're not processing
         if (!open && !isProcessing) {
@@ -214,7 +225,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
           <Button 
             onClick={handleConfirmStake}
             className="bg-solana hover:bg-solana-dark text-white"
-            disabled={isProcessing}
+            disabled={isProcessing || hasProcessed}
           >
             {isProcessing ? (
               <>

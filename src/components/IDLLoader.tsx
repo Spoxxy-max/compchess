@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -265,6 +266,7 @@ const IDLLoader: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(isIDLInitialized());
   const { toast } = useToast();
 
+  // Auto-load IDL on component mount if not already loaded
   useEffect(() => {
     if (!isLoaded) {
       handleIDLLoadSilently();

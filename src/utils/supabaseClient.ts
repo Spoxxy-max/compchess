@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -308,60 +307,60 @@ export const getGamesCreatedByUser = async (userId: string): Promise<GameData[]>
 
 // Start the game after countdown
 export const startGame = async (gameId: string): Promise<boolean> => {
-  const { error } = await supabase
-    .from('chess_games')
-    .update({
-      status: 'active' as const
-    })
-    .eq('id', gameId);
+  try {
+    console.log("Starting game with ID:", gameId);
     
-  if (error) {
-    console.error('Error starting game:', error);
+    const { data, error } = await supabase
+      .from('chess_games')
+      .update({
+        status: 'active'
+      })
+      .eq('id', gameId);
+    
+    if (error) {
+      console.error("Error starting game:", error);
+      return false;
+    }
+    
+    console.log("Game started successfully");
+    return true;
+  } catch (error) {
+    console.error("Exception starting game:", error);
     return false;
   }
-  
-  return true;
 };
 
 // Update game state - with comprehensive board state update
 export const updateGameState = async (
   gameId: string, 
   boardState: ChessBoard, 
-  moveHistory: string[]
+  moveHistory: any[]
 ): Promise<boolean> => {
-  console.log(`Updating game state for game ${gameId}, current turn: ${boardState.currentTurn}`);
-  
-  // Create a clean copy of the board state to prevent issues with circular references
-  const cleanBoardState = {
-    ...boardState,
-    selectedSquare: null, // Clear selected square
-    validMoves: [],       // Clear valid moves
-    squares: boardState.squares.map(row => 
-      row.map(square => ({
-        ...square,
-        piece: square.piece ? { ...square.piece } : null
-      }))
-    )
-  };
-
-  const { error } = await supabase
-    .from('chess_games')
-    .update({ 
-      board_state: boardToJson(cleanBoardState),
-      move_history: moveHistory,
-      current_turn: boardState.currentTurn,
-      time_white: boardState.whiteTime,
-      time_black: boardState.blackTime
-    })
-    .eq('id', gameId);
+  try {
+    console.log("Updating game state in database for game:", gameId);
+    console.log("New board state:", boardState);
+    console.log("Move history:", moveHistory);
     
-  if (error) {
-    console.error('Error updating game state:', error);
+    const { data, error } = await supabase
+      .from('chess_games')
+      .update({
+        board_state: boardState,
+        move_history: moveHistory,
+        current_turn: boardState.currentTurn
+      })
+      .eq('id', gameId);
+    
+    if (error) {
+      console.error("Error updating game state:", error);
+      return false;
+    }
+    
+    console.log("Game state updated successfully");
+    return true;
+  } catch (error) {
+    console.error("Exception updating game state:", error);
     return false;
   }
-  
-  console.log(`Game state updated successfully for game ${gameId}`);
-  return true;
 };
 
 // End game and declare winner
