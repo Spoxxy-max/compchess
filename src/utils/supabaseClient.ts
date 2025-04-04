@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -30,15 +29,15 @@ export interface GameData {
   board_state: ChessBoard;
   move_history: string[];
   current_turn: PieceColor;
+  game_code?: string; // Added game code field
   // We'll handle these fields without database columns
   last_activity?: string; 
   start_time?: string;
-  game_code?: string; // Added game code field
 }
 
 // Convert ChessBoard to JSON-compatible object
 const boardToJson = (board: ChessBoard): Json => {
-  // Create a plain object copy that TypeScript will accept as Json
+  // Fix type instantiation error by converting to plain object first
   return JSON.parse(JSON.stringify(board)) as Json;
 };
 
@@ -165,7 +164,8 @@ export const getGameById = async (gameId: string): Promise<GameData | null> => {
     move_history: Array.isArray(data.move_history) ? data.move_history.map(move => String(move)) : [],
     status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: data.current_turn as PieceColor,
-    last_activity: new Date().toISOString()
+    last_activity: new Date().toISOString(),
+    game_code: data.game_code // Ensure we include game_code in the returned object
   };
 };
 
@@ -198,7 +198,8 @@ export const getGameByCode = async (gameCode: string): Promise<GameData | null> 
     move_history: Array.isArray(data.move_history) ? data.move_history.map(move => String(move)) : [],
     status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: data.current_turn as PieceColor,
-    last_activity: new Date().toISOString()
+    last_activity: new Date().toISOString(),
+    game_code: data.game_code // Ensure we include game_code in the returned object
   };
 };
 
@@ -280,7 +281,8 @@ export const getAllGames = async (): Promise<GameData[]> => {
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
     status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: game.current_turn as PieceColor,
-    last_activity: new Date().toISOString()
+    last_activity: new Date().toISOString(),
+    game_code: game.game_code // Ensure we include game_code in the returned object
   }));
 };
 
@@ -316,7 +318,8 @@ export const getAvailableGames = async (currentUserId?: string): Promise<GameDat
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
     status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: game.current_turn as PieceColor,
-    last_activity: new Date().toISOString()
+    last_activity: new Date().toISOString(),
+    game_code: game.game_code // Ensure we include game_code in the returned object
   }));
 };
 
@@ -345,7 +348,8 @@ export const getGamesCreatedByUser = async (userId: string): Promise<GameData[]>
     move_history: Array.isArray(game.move_history) ? game.move_history.map(move => String(move)) : [],
     status: game.status as 'waiting' | 'active' | 'completed' | 'aborted',
     current_turn: game.current_turn as PieceColor,
-    last_activity: new Date().toISOString()
+    last_activity: new Date().toISOString(),
+    game_code: game.game_code // Ensure we include game_code in the returned object
   }));
 };
 

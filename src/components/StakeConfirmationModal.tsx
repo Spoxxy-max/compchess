@@ -143,11 +143,15 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       console.log("Game created successfully in database:", gameData);
       
       // Store the game code for display
-      if (gameData && gameData.game_code) {
-        setGameCode(gameData.game_code);
-      } else if (gameCode) {
-        // Fallback to our generated code if database doesn't return it
-        setGameCode(gameCode);
+      if (gameData) {
+        // Check if game_code exists in gameData
+        const receivedGameCode = (gameData as any).game_code;
+        if (receivedGameCode) {
+          setGameCode(receivedGameCode);
+        } else if (gameCode) {
+          // Fallback to our generated code if database doesn't return it
+          setGameCode(gameCode);
+        }
       }
       
       toast({
