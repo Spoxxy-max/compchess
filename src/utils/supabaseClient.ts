@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
 import { Json } from '@/integrations/supabase/types';
+import { customAlphabet } from 'nanoid';
+
+// Create a custom nanoid generator for game codes (6 characters, uppercase letters and numbers)
+const generateGameCode = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
 
 // Game-related functions
 export interface CreateGameParams {
@@ -29,6 +33,7 @@ export interface GameData {
   // We'll handle these fields without database columns
   last_activity?: string; 
   start_time?: string;
+  game_code?: string; // Added game code field
 }
 
 // Convert ChessBoard to JSON-compatible object
@@ -102,6 +107,9 @@ export const createGame = async (
     // Other board state properties will be added by the game engine
   } as unknown as ChessBoard;
   
+  // Generate a unique game code
+  const gameCode = generateGameCode();
+  
   const { data, error } = await supabase
     .from('chess_games')
     .insert({
@@ -113,7 +121,8 @@ export const createGame = async (
       status: 'waiting' as const,
       board_state: boardToJson(initialBoard),
       move_history: [],
-      current_turn: 'white'
+      current_turn: 'white',
+      game_code: gameCode // Add the generated game code
     })
     .select()
     .single();
@@ -149,6 +158,39 @@ export const getGameById = async (gameId: string): Promise<GameData | null> => {
   }
   
   console.log(`Found game with ID: ${gameId}`, data);
+  
+  return {
+    ...data,
+    board_state: jsonToBoard(data.board_state),
+    move_history: Array.isArray(data.move_history) ? data.move_history.map(move => String(move)) : [],
+    status: data.status as 'waiting' | 'active' | 'completed' | 'aborted',
+    current_turn: data.current_turn as PieceColor,
+    last_activity: new Date().toISOString()
+  };
+};
+
+// Get a game by game code
+export const getGameByCode = async (gameCode: string): Promise<GameData | null> => {
+  console.log(`Fetching game with code: ${gameCode}`);
+  
+  const { data, error } = await supabase
+    .from('chess_games')
+    .select('*')
+    .eq('game_code', gameCode.toUpperCase())
+    .eq('status', 'waiting')
+    .maybeSingle();
+    
+  if (error) {
+    console.error('Error fetching game by code:', error);
+    return null;
+  }
+  
+  if (!data) {
+    console.log(`No game found with code: ${gameCode}`);
+    return null;
+  }
+  
+  console.log(`Found game with code: ${gameCode}`, data);
   
   return {
     ...data,

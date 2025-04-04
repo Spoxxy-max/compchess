@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/Header';
@@ -15,7 +16,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, Share2 } from 'lucide-react';
-import { createGame, getGameById } from '../utils/supabaseClient';
+import { getGameById, getGameByCode } from '../utils/supabaseClient';
 
 const Index = () => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
@@ -49,6 +50,7 @@ const Index = () => {
     const checkForGameInvite = async () => {
       const params = new URLSearchParams(location.search);
       const gameId = params.get('join');
+      const gameCode = params.get('code');
       
       if (gameId && isLoggedIn && !processingInviteGame) {
         setProcessingInviteGame(true);
@@ -82,7 +84,44 @@ const Index = () => {
         } finally {
           setProcessingInviteGame(false);
         }
-      } else if (gameId && !isLoggedIn) {
+      } else if (gameCode && isLoggedIn && !processingInviteGame) {
+        setProcessingInviteGame(true);
+        
+        try {
+          const gameData = await getGameByCode(gameCode);
+          
+          if (gameData) {
+            const timeControl = timeControlOptions.find(
+              option => option.type === gameData.time_control
+            ) || timeControlOptions[0];
+            
+            setSelectedGameId(gameData.id);
+            setStakeAmount(gameData.stake);
+            setSelectedTimeControl(timeControl);
+            setIsJoinStakeConfirmationModalOpen(true);
+            
+            // Clean up URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('code');
+            window.history.replaceState({}, '', url.toString());
+          } else {
+            toast({
+              title: "Game Not Found",
+              description: "The game with this code doesn't exist or has already started.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching game by code:", error);
+          toast({
+            title: "Error",
+            description: "Could not load the game with this code.",
+            variant: "destructive",
+          });
+        } finally {
+          setProcessingInviteGame(false);
+        }
+      } else if ((gameId || gameCode) && !isLoggedIn) {
         toast({
           title: "Connect Wallet",
           description: "Please connect your wallet to join this game.",
@@ -94,8 +133,11 @@ const Index = () => {
     checkForGameInvite();
   }, [location, isLoggedIn]);
 
-  const generateShareableLink = (gameId: string) => {
+  const generateShareableLink = (gameId: string, gameCode?: string) => {
     const baseUrl = window.location.origin;
+    if (gameCode) {
+      return `${baseUrl}?code=${gameCode}`;
+    }
     return `${baseUrl}?join=${gameId}`;
   };
 
@@ -135,38 +177,15 @@ const Index = () => {
   };
 
   const handleConfirmStake = async () => {
-    if (!publicKey || !selectedTimeControl) return;
-    
-    try {
-      const gameId = await createGame(
-        publicKey.toString(),
-        selectedTimeControl,
-        stakeAmount
-      );
-      
-      if (gameId) {
-        const link = generateShareableLink(gameId);
-        setShareableLink(link);
-        setIsStakeConfirmationModalOpen(false);
-        setIsShareLinkModalOpen(true);
-        
-        navigate(`/game/${gameId}`, {
-          state: {
-            timeControl: selectedTimeControl,
-            stake: stakeAmount,
-            playerColor: 'white',
-            gameId
-          }
-        });
+    // The navigation is now handled by the StakeConfirmationModal after it shows the game code
+    navigate(`/game/${selectedGameId}`, {
+      state: {
+        timeControl: selectedTimeControl,
+        stake: stakeAmount,
+        playerColor: 'white',
+        gameId: selectedGameId
       }
-    } catch (error) {
-      console.error("Error creating game:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create the game. Please try again.",
-        variant: "destructive",
-      });
-    }
+    });
   };
 
   const handleJoinGameSubmit = (gameId: string, stake: number, timeControl: TimeControl) => {
@@ -180,9 +199,23 @@ const Index = () => {
   const handleConfirmJoinStake = async (gameId: string) => {
     console.log("Join stake confirmed for game:", gameId);
     
+    // Navigate to the game page
+    navigate(`/game/${gameId}`, {
+      state: {
+        timeControl: selectedTimeControl,
+        stake: stakeAmount,
+        playerColor: 'black',
+        gameId: gameId
+      }
+    });
+    
     const url = new URL(window.location.href);
     if (url.searchParams.has('join')) {
       url.searchParams.delete('join');
+      window.history.replaceState({}, '', url.toString());
+    }
+    if (url.searchParams.has('code')) {
+      url.searchParams.delete('code');
       window.history.replaceState({}, '', url.toString());
     }
   };

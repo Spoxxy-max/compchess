@@ -29,6 +29,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasProcessed, setHasProcessed] = useState(false);
+  const [gameCode, setGameCode] = useState<string | null>(null);
   const { publicKey, signTransaction } = useWallet();
   const { toast } = useToast();
   
@@ -40,6 +41,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
     } else {
       // Only reset hasProcessed when the dialog is freshly opened
       setHasProcessed(false);
+      setGameCode(null);
     }
   }, [isOpen]);
   
@@ -136,6 +138,11 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       
       console.log("Game created successfully in database:", gameData);
       
+      // Store the game code for display
+      if (gameData && gameData.game_code) {
+        setGameCode(gameData.game_code);
+      }
+      
       toast({
         title: "Stake Successful",
         description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
@@ -144,13 +151,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       // Mark as processed to prevent duplicate processing
       setHasProcessed(true);
       
-      // First close the modal to prevent it from showing again
-      onClose();
-      
-      // Then after a short delay, navigate
-      setTimeout(() => {
-        onConfirm();
-      }, 100);
+      // No longer immediately close modal or navigate since we want to show the game code
       
     } catch (error: any) {
       console.error("Error processing stake:", error);
@@ -173,6 +174,17 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
     }
   };
 
+  // Handle continue button click when game code is shown
+  const handleContinueToGame = () => {
+    // First close the modal to prevent it from showing again
+    onClose();
+    
+    // Then after a short delay, navigate
+    setTimeout(() => {
+      onConfirm();
+    }, 100);
+  };
+
   return (
     <Dialog 
       open={isOpen && !hasProcessed} 
@@ -185,54 +197,88 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Confirm Stake</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            {gameCode ? "Game Created" : "Confirm Stake"}
+          </DialogTitle>
         </DialogHeader>
         
-        <div className="p-4 flex flex-col space-y-4">
-          <div className="flex items-center space-x-2 text-yellow-500">
-            <AlertCircle className="h-5 w-5" />
-            <p className="text-sm font-medium">
-              You're about to start a game with real stakes
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 bg-card/50 p-4 rounded-md">
-            <div className="flex flex-col">
-              <span className="text-sm text-gray-400">Time Control</span>
-              <span className="font-medium">{timeControl}</span>
+        {!gameCode ? (
+          <>
+            <div className="p-4 flex flex-col space-y-4">
+              <div className="flex items-center space-x-2 text-yellow-500">
+                <AlertCircle className="h-5 w-5" />
+                <p className="text-sm font-medium">
+                  You're about to start a game with real stakes
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 bg-card/50 p-4 rounded-md">
+                <div className="flex flex-col">
+                  <span className="text-sm text-gray-400">Time Control</span>
+                  <span className="font-medium">{timeControl}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm text-gray-400">Stake Amount</span>
+                  <span className="font-medium text-solana">{formatStakeAmount(stake)} SOL</span>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-300">
+                By confirming, you agree to stake {formatStakeAmount(stake)} SOL on this game. This amount will be held in escrow until the game concludes.
+              </p>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm text-gray-400">Stake Amount</span>
-              <span className="font-medium text-solana">{formatStakeAmount(stake)} SOL</span>
+            
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmStake}
+                className="bg-solana hover:bg-solana-dark text-white"
+                disabled={isProcessing || hasProcessed}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Confirm Stake <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <div className="p-4 flex flex-col space-y-4">
+              <div className="flex items-center justify-center py-6">
+                <div className="bg-card/80 p-6 rounded-md border-2 border-solana text-center">
+                  <h3 className="text-xl font-bold mb-2">Game Code</h3>
+                  <p className="text-3xl font-mono tracking-wider text-solana">{gameCode}</p>
+                  <p className="mt-3 text-sm text-gray-300">
+                    Share this code with your opponent to join the game
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-300">
+                Your opponent can join the game by entering this code in the Join Game screen.
+                The game will begin once they successfully join.
+              </p>
             </div>
-          </div>
-          
-          <p className="text-sm text-gray-300">
-            By confirming, you agree to stake {formatStakeAmount(stake)} SOL on this game. This amount will be held in escrow until the game concludes.
-          </p>
-        </div>
-        
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleConfirmStake}
-            className="bg-solana hover:bg-solana-dark text-white"
-            disabled={isProcessing || hasProcessed}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                Confirm Stake <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+            
+            <DialogFooter>
+              <Button 
+                onClick={handleContinueToGame}
+                className="bg-solana hover:bg-solana-dark text-white"
+              >
+                Continue to Game
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
