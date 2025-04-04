@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -32,7 +33,8 @@ export interface GameData {
 
 // Convert ChessBoard to JSON-compatible object
 const boardToJson = (board: ChessBoard): Json => {
-  return board as unknown as Json;
+  // Create a plain object copy that TypeScript will accept as Json
+  return JSON.parse(JSON.stringify(board)) as Json;
 };
 
 // Convert JSON back to ChessBoard
@@ -344,7 +346,7 @@ export const updateGameState = async (
     const { data, error } = await supabase
       .from('chess_games')
       .update({
-        board_state: boardState,
+        board_state: boardToJson(boardState),
         move_history: moveHistory,
         current_turn: boardState.currentTurn
       })

@@ -8,7 +8,7 @@ import { createStakingTransaction } from '@/integrations/solana/smartContract';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
-import { Connection, PublicKey, sendAndConfirmTransaction } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -122,13 +122,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
           time_black: timeInSeconds,
           stake: stake,
           status: 'waiting',
-          board_state: {
-            pieces: [],
-            currentTurn: 'white',
-            whiteTime: timeInSeconds,
-            blackTime: timeInSeconds,
-            moveHistory: []
-          },
+          board_state: {}, // Using empty object that will be transformed by boardToJson
           move_history: [],
           current_turn: 'white'
         })
@@ -150,10 +144,10 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       // Mark as processed to prevent duplicate processing
       setHasProcessed(true);
       
-      // Close the modal first 
+      // First close the modal to prevent it from showing again
       onClose();
       
-      // Then navigate (this avoids the double confirmation issue)
+      // Then after a short delay, navigate
       setTimeout(() => {
         onConfirm();
       }, 100);
