@@ -35,6 +35,7 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [animationComplete, setAnimationComplete] = useState(false);
   const { wallet, publicKey } = useWallet();
+  const [processingInviteGame, setProcessingInviteGame] = useState(false);
 
   const isLoggedIn = wallet?.adapter.connected;
 
@@ -51,8 +52,10 @@ const Index = () => {
       const params = new URLSearchParams(location.search);
       const gameId = params.get('join');
       
-      if (gameId && isLoggedIn) {
-        // Fetch game data
+      // Prevent duplicate processing
+      if (gameId && isLoggedIn && !processingInviteGame) {
+        setProcessingInviteGame(true);
+        
         try {
           const gameData = await getGameById(gameId);
           
@@ -80,6 +83,8 @@ const Index = () => {
             description: "Could not load the game invitation.",
             variant: "destructive",
           });
+        } finally {
+          setProcessingInviteGame(false);
         }
       } else if (gameId && !isLoggedIn) {
         toast({
@@ -180,15 +185,16 @@ const Index = () => {
   };
 
   const handleConfirmJoinStake = async (gameId: string) => {
-    // Navigate directly to the joined game
-    navigate(`/game/${gameId}`, {
-      state: {
-        timeControl: selectedTimeControl,
-        stake: stakeAmount,
-        playerColor: 'black',
-        gameId
-      }
-    });
+    // This function is now handled directly in JoinStakeConfirmationModal
+    // Navigation happens there to avoid multiple dialogs
+    console.log("Join stake confirmed for game:", gameId);
+    
+    // Just close the modal here, and make sure we clean up any URL parameters
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('join')) {
+      url.searchParams.delete('join');
+      window.history.replaceState({}, '', url.toString());
+    }
   };
 
   const handleCopyLink = () => {
