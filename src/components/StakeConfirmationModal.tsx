@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -37,13 +37,10 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
   const { publicKey, signTransaction } = useWallet();
   const { toast } = useToast();
   
-  // Reset processing state when dialog closes or opens
   useEffect(() => {
     if (!isOpen) {
       setIsProcessing(false);
-      // Don't reset hasProcessed here so we can prevent reopening
     } else {
-      // Only reset hasProcessed when the dialog is freshly opened
       setHasProcessed(false);
       setGameCode(null);
       setGameId(null);
@@ -51,7 +48,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
     }
   }, [isOpen]);
   
-  // Generate shareable link when game code is available
   useEffect(() => {
     if (gameCode) {
       const baseUrl = window.location.origin;
@@ -106,26 +102,21 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       return;
     }
 
-    // Prevent multiple clicks or reprocessing
     if (isProcessing || hasProcessed) return;
 
     try {
       setIsProcessing(true);
       console.log("Starting transaction process with wallet:", publicKey.toString());
       
-      // Explicitly connect to Solana devnet
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       console.log("Connected to Solana devnet for transaction:", connection.rpcEndpoint);
       
-      // Get the time control in seconds
-      const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600; // Default to 10 min if not provided
+      const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600;
       
       console.log("Creating transaction with stake:", stake, "SOL and time control:", timeInSeconds, "seconds");
       
-      // Create the transaction
       const transaction = await createStakingTransaction(publicKey.toString(), stake, timeInSeconds);
       
-      // Get a recent blockhash and set it on the transaction
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
@@ -133,17 +124,14 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       console.log("Transaction created with blockhash:", blockhash);
       console.log("Signing transaction now...");
       
-      // Sign the transaction
       const signedTransaction = await signTransaction(transaction);
       
       console.log("Transaction signed successfully. Sending to network...");
       
-      // Send the signed transaction to the Solana network
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
       
       console.log("Transaction sent with signature:", signature);
       
-      // Wait for confirmation
       const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       
       if (confirmation.value.err) {
@@ -153,10 +141,8 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       
       console.log("Transaction confirmed successfully:", confirmation);
       
-      // Generate a unique game code (6 characters)
       const gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
       
-      // Create a new game in the database
       const { data: gameData, error } = await supabase
         .from('chess_games')
         .insert({
@@ -166,7 +152,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
           time_black: timeInSeconds,
           stake: stake,
           status: 'waiting',
-          board_state: {}, // Using empty object that will be transformed by boardToJson
+          board_state: {},
           move_history: [],
           current_turn: 'white',
           game_code: gameCode
@@ -181,7 +167,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       
       console.log("Game created successfully in database:", gameData);
       
-      // Store the game code and ID for display
       if (gameData) {
         setGameCode(gameData.game_code || gameCode);
         setGameId(gameData.id);
@@ -192,18 +177,12 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         description: `Successfully staked ${formatStakeAmount(stake)} SOL`,
       });
       
-      // Mark as processed to prevent duplicate processing
       setHasProcessed(true);
-      
-      // No longer immediately close modal or navigate since we want to show the game code
-      
     } catch (error: any) {
       console.error("Error processing stake:", error);
       
-      // Get more detailed error information when available
       let errorMessage = error.message || "Failed to process stake transaction";
       
-      // Check for specific Solana error types
       if (error.logs) {
         console.error("Transaction logs:", error.logs);
         errorMessage = `${errorMessage}. Error details: ${error.logs.join(' ')}`;
@@ -218,23 +197,17 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
     }
   };
 
-  // Handle continue button click when game code is shown
   const handleContinueToGame = () => {
-    // First close the modal to prevent it from showing again
     onClose();
-    
-    // Then after a short delay, navigate
     setTimeout(() => {
       onConfirm();
     }, 100);
   };
 
-  // Create a component to subscribe to game updates in real-time
   const GameSubscription = ({ gameId }: { gameId: string }) => {
     const [opponentJoined, setOpponentJoined] = useState(false);
     
     useEffect(() => {
-      // Subscribe to real-time updates for the game
       const subscription = supabase
         .channel(`game-${gameId}`)
         .on(
@@ -248,7 +221,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
           (payload) => {
             console.log("Game update received:", payload);
             
-            // Check if opponent has joined
             if (payload.new && payload.new.opponent_id && !opponentJoined) {
               setOpponentJoined(true);
               
@@ -257,7 +229,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
                 description: "Your opponent has joined the game! Starting soon...",
               });
               
-              // Automatically navigate to game when opponent joins
               handleContinueToGame();
             }
           }
@@ -269,14 +240,13 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       };
     }, [gameId]);
     
-    return null; // This component doesn't render anything, just sets up the subscription
+    return null;
   };
 
   return (
     <Dialog 
       open={isOpen && !hasProcessed} 
       onOpenChange={(open) => {
-        // Only allow closing if we're not processing
         if (!open && !isProcessing) {
           onClose();
         }
@@ -340,7 +310,6 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
         ) : (
           <>
             <div className="p-4 flex flex-col space-y-4">
-              {/* Add subscription component for real-time updates */}
               {gameId && <GameSubscription gameId={gameId} />}
               
               <div className="flex items-center justify-center py-6">
