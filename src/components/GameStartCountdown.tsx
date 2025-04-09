@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import CountdownTimer from './CountdownTimer';
@@ -78,7 +77,7 @@ const GameStartCountdown: React.FC<GameStartCountdownProps> = ({
     return () => {
       // Clean up subscription
       if (subscription) {
-        supabase.removeChannel(subscription);
+        subscription.unsubscribe();
       }
     };
   }, [gameId, playerColor, toast, status]);

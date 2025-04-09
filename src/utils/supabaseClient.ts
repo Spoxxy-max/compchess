@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
 import { v4 as uuidv4 } from 'uuid';
-import { eloChange } from './chessUtils';
 import { Json } from '@/integrations/supabase/types';
 
 // Game status enum
@@ -24,7 +23,27 @@ export enum GameOutcome {
   Abandoned = 'abandoned'
 }
 
-// Game interface
+// Game data interface that matches the database schema
+export interface GameData {
+  id: string;
+  host_id: string;
+  opponent_id?: string;
+  stake: number;
+  time_control: string;
+  time_white: number;
+  time_black: number;
+  status: GameStatus;
+  winner_id?: string;
+  board_state: ChessBoard;
+  move_history: string[];
+  current_turn: PieceColor;
+  game_code?: string;
+  // We'll handle these fields without database columns
+  last_activity?: string; 
+  start_time?: string;
+}
+
+// Game interface (same as GameData but with optional id for creation)
 export interface Game {
   id?: string;
   host_id: string;
@@ -61,21 +80,36 @@ export const createGame = async (
   hostId: string,
   timeControl: TimeControl,
   stake: number = 0
-): Promise<Game | null> => {
+): Promise<string | null> => {
   try {
     // Generate a 6-character game code
     const gameCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    // Create an empty board structure that aligns with ChessBoard type
+    const emptyBoard: ChessBoard = {
+      squares: [],
+      currentTurn: 'white',
+      selectedSquare: null,
+      validMoves: [],
+      capturedPieces: [],
+      moveHistory: [],
+      whiteTime: timeControl.startTime,
+      blackTime: timeControl.startTime,
+      isTimerRunning: false,
+      gameOver: false,
+      winner: null
+    };
     
     const { data, error } = await supabase
       .from('chess_games')
       .insert({
         host_id: hostId,
-        time_control: `${timeControl.minutes}+${timeControl.increment}`,
+        time_control: `${timeControl.type}`,
         time_white: timeControl.startTime,
         time_black: timeControl.startTime,
         stake: stake,
         status: GameStatus.Waiting,
-        board_state: boardToJson({}), // Empty board, will be set up on game start
+        board_state: boardToJson(emptyBoard),
         move_history: [],
         current_turn: 'white',
         game_code: gameCode
@@ -88,11 +122,7 @@ export const createGame = async (
       return null;
     }
 
-    // Convert the data to our Game interface
-    return {
-      ...data,
-      board_state: jsonToBoard(data.board_state)
-    } as Game;
+    return data.id;
   } catch (error) {
     console.error('Error creating game:', error);
     return null;
@@ -100,7 +130,7 @@ export const createGame = async (
 };
 
 // Get a game by ID
-export const getGameById = async (gameId: string): Promise<Game | null> => {
+export const getGameById = async (gameId: string): Promise<GameData | null> => {
   try {
     const { data, error } = await supabase
       .from('chess_games')
@@ -113,11 +143,11 @@ export const getGameById = async (gameId: string): Promise<Game | null> => {
       return null;
     }
 
-    // Convert the data to our Game interface
+    // Convert the data to our GameData interface
     return {
       ...data,
       board_state: jsonToBoard(data.board_state)
-    } as Game;
+    } as GameData;
   } catch (error) {
     console.error('Error getting game:', error);
     return null;
@@ -125,7 +155,7 @@ export const getGameById = async (gameId: string): Promise<Game | null> => {
 };
 
 // Get a game by code
-export const getGameByCode = async (code: string): Promise<Game | null> => {
+export const getGameByCode = async (code: string): Promise<GameData | null> => {
   try {
     const { data, error } = await supabase
       .from('chess_games')
@@ -138,11 +168,11 @@ export const getGameByCode = async (code: string): Promise<Game | null> => {
       return null;
     }
 
-    // Convert the data to our Game interface
+    // Convert the data to our GameData interface
     return {
       ...data,
       board_state: jsonToBoard(data.board_state)
-    } as Game;
+    } as GameData;
   } catch (error) {
     console.error('Error getting game by code:', error);
     return null;
@@ -170,14 +200,85 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
   }
 };
 
+// Start a game (helper function for game initialization)
+export const startGame = async (gameId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('chess_games')
+      .update({ 
+        status: GameStatus.Active,
+        // Record the timestamp when the game starts
+        start_time: new Date().toISOString()
+      })
+      .eq('id', gameId);
+
+    if (error) {
+      console.error('Error starting game:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error starting game:', error);
+    return false;
+  }
+};
+
+// Check for game inactivity
+export const checkGameInactivity = async (gameId: string): Promise<{ inactive: boolean }> => {
+  try {
+    const { data, error } = await supabase
+      .from('chess_games')
+      .select('*')
+      .eq('id', gameId)
+      .single();
+
+    if (error || !data) {
+      console.error('Error checking game inactivity:', error);
+      return { inactive: false };
+    }
+
+    // Game is considered inactive if no move has been made for 30+ seconds after start
+    const startTime = data.start_time ? new Date(data.start_time) : null;
+    const now = new Date();
+    const inactive = startTime && now.getTime() - startTime.getTime() > 30000 && 
+                     data.move_history.length === 0;
+
+    return { inactive };
+  } catch (error) {
+    console.error('Error checking game inactivity:', error);
+    return { inactive: false };
+  }
+};
+
+// Abort a game
+export const abortGame = async (gameId: string, reason: string = 'abandoned'): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('chess_games')
+      .update({ 
+        status: GameStatus.Aborted,
+        // Add reason as a comment if needed
+      })
+      .eq('id', gameId);
+
+    if (error) {
+      console.error('Error aborting game:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error aborting game:', error);
+    return false;
+  }
+};
+
 // Update game state
 export const updateGameState = async (
   gameId: string,
   board: ChessBoard,
-  moveHistory: string[],
-  currentTurn: PieceColor,
-  timeWhite: number,
-  timeBlack: number
+  moveHistory: string[]
 ): Promise<boolean> => {
   try {
     const { error } = await supabase
@@ -185,9 +286,9 @@ export const updateGameState = async (
       .update({
         board_state: boardToJson(board),
         move_history: moveHistory,
-        current_turn: currentTurn,
-        time_white: timeWhite,
-        time_black: timeBlack
+        current_turn: board.currentTurn,
+        time_white: board.whiteTime,
+        time_black: board.blackTime
       })
       .eq('id', gameId);
 
@@ -237,7 +338,7 @@ export const endGame = async (
 };
 
 // Get active games for a player
-export const getActiveGamesForPlayer = async (playerId: string): Promise<Game[]> => {
+export const getActiveGamesForPlayer = async (playerId: string): Promise<GameData[]> => {
   try {
     const { data, error } = await supabase
       .from('chess_games')
@@ -250,11 +351,11 @@ export const getActiveGamesForPlayer = async (playerId: string): Promise<Game[]>
       return [];
     }
 
-    // Convert the data to our Game interface
+    // Convert the data to our GameData interface
     return data.map(game => ({
       ...game,
       board_state: jsonToBoard(game.board_state)
-    })) as Game[];
+    })) as GameData[];
   } catch (error) {
     console.error('Error getting active games:', error);
     return [];
@@ -307,3 +408,71 @@ export const getOrCreateWalletProfile = async (walletAddress: string) => {
     return null;
   }
 };
+
+// Get all available games
+export const getAllGames = async (): Promise<GameData[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('chess_games')
+      .select('*')
+      .eq('status', GameStatus.Waiting)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting all games:', error);
+      return [];
+    }
+
+    return data.map(game => ({
+      ...game,
+      board_state: jsonToBoard(game.board_state)
+    })) as GameData[];
+  } catch (error) {
+    console.error('Error getting all games:', error);
+    return [];
+  }
+};
+
+// Get games created by a specific user
+export const getGamesCreatedByUser = async (userId: string): Promise<GameData[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('chess_games')
+      .select('*')
+      .eq('host_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting games by user:', error);
+      return [];
+    }
+
+    return data.map(game => ({
+      ...game,
+      board_state: jsonToBoard(game.board_state)
+    })) as GameData[];
+  } catch (error) {
+    console.error('Error getting games by user:', error);
+    return [];
+  }
+};
+
+// Create a function to subscribe to real-time changes on a game
+export const subscribeToGame = (gameId: string, callback: (payload: any) => void) => {
+  return supabase
+    .channel(`game-${gameId}`)
+    .on(
+      'postgres_changes', 
+      { 
+        event: '*', 
+        schema: 'public', 
+        table: 'chess_games',
+        filter: `id=eq.${gameId}` 
+      }, 
+      callback
+    )
+    .subscribe();
+};
+
+// Re-export supabase client from the integration
+export { supabase } from '@/integrations/supabase/client';
