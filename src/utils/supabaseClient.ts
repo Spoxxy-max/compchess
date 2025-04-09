@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -185,7 +184,7 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     // First, check if the user is trying to join their own game
     const { data: gameData, error: getError } = await supabase
       .from('chess_games')
-      .select('host_id')
+      .select('host_id, status, opponent_id')
       .eq('id', gameId)
       .single();
     
@@ -197,7 +196,25 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     // Prevent joining own game
     if (gameData.host_id === opponentId) {
       console.error('Cannot join your own game');
-      return false;
+      throw new Error('You cannot join your own game');
+    }
+
+    // Check if game is already joined by someone else
+    if (gameData.opponent_id && gameData.opponent_id !== opponentId) {
+      console.error('Game already has an opponent');
+      throw new Error('This game already has an opponent');
+    }
+
+    // Check if game is in waiting status
+    if (gameData.status !== GameStatus.Waiting) {
+      console.error('Game is not in waiting status');
+      throw new Error('This game is no longer accepting players');
+    }
+
+    // If the user is already the opponent, just return true (idempotent operation)
+    if (gameData.opponent_id === opponentId) {
+      console.log('User is already the opponent for this game');
+      return true;
     }
 
     const { data, error } = await supabase
@@ -216,9 +233,9 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
     }
 
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error joining game:', error);
-    return false;
+    throw error; // Rethrow so we can handle it in the UI
   }
 };
 

@@ -6,7 +6,7 @@ import { TimeControl } from '../utils/chessTypes';
 import { joinGame, getGameById } from '../utils/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 
@@ -31,9 +31,17 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [alreadyJoined, setAlreadyJoined] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { publicKey } = useWallet();
   const navigate = useNavigate();
+
+  // Clear error when modal opens or closes
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+    }
+  }, [isOpen]);
 
   // Check if user already joined this game when modal opens
   useEffect(() => {
@@ -72,6 +80,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
     if (isProcessing) return;
     
     setIsProcessing(true);
+    setError(null);
 
     try {
       // If user already joined this game, navigate directly
@@ -98,15 +107,33 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         return;
       }
 
+      console.log("Attempting to join game:", gameId);
+
       // Connect to Solana devnet
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       console.log("Connected to Solana devnet for join game:", connection.rpcEndpoint);
 
-      // Join the game in the database first
+      // Get the game data to verify it's available
+      const gameData = await getGameById(gameId);
+      if (!gameData) {
+        throw new Error("Game not found or no longer available");
+      }
+
+      // Check if game is already full
+      if (gameData.opponent_id) {
+        throw new Error("This game already has an opponent");
+      }
+
+      // Check if game is in waiting state
+      if (gameData.status !== 'waiting') {
+        throw new Error("This game is no longer accepting players");
+      }
+
+      // Join the game in the database
       const joinSuccess = await joinGame(gameId, publicKey.toString());
       
       if (!joinSuccess) {
-        throw new Error("Failed to join the game");
+        throw new Error("Failed to join the game. Please try again.");
       }
 
       // If stake is zero, we don't need to process a transaction
@@ -157,11 +184,12 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         setIsProcessing(false);
       }, 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error joining game:", error);
+      setError(error.message || "Failed to join the game. Please try again.");
       toast({
         title: "Error",
-        description: "Failed to join the game. Please try again.",
+        description: error.message || "Failed to join the game. Please try again.",
         variant: "destructive",
       });
       setIsProcessing(false);
@@ -202,6 +230,13 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
                 <p className="text-sm text-green-200">
                   You've already joined this game. Clicking confirm will reconnect you to the game.
                 </p>
+              </div>
+            )}
+            
+            {error && (
+              <div className="mt-2 bg-red-500/20 border border-red-500/30 p-3 rounded-md flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-200">{error}</p>
               </div>
             )}
             
