@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -258,12 +259,16 @@ export const checkGameInactivity = async (gameId: string): Promise<{ inactive: b
       return { inactive: false };
     }
 
+    // Explicitly type the data as any first to bypass TypeScript's type checking
+    // then cast it to our GameData interface
+    const gameData = data as any as GameData;
+    
     // Game is considered inactive if no move has been made for 30+ seconds after start
-    const startTime = data.start_time ? new Date(data.start_time) : null;
+    const startTime = gameData.start_time ? new Date(gameData.start_time) : null;
     const now = new Date();
     
     // Check if move_history is an array and has a length property
-    const moveHistoryLength = Array.isArray(data.move_history) ? data.move_history.length : 0;
+    const moveHistoryLength = Array.isArray(gameData.move_history) ? gameData.move_history.length : 0;
     
     const inactive = startTime && now.getTime() - startTime.getTime() > 30000 && 
                      moveHistoryLength === 0;
