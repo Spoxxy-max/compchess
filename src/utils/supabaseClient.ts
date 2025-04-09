@@ -37,9 +37,8 @@ export interface GameData {
   move_history: string[];
   current_turn: PieceColor;
   game_code?: string;
-  // We'll handle these fields separately
-  last_activity?: string; 
   start_time?: string;
+  last_activity?: string;
 }
 
 // Game interface (same as GameData but with optional id for creation)
@@ -57,9 +56,8 @@ export interface Game {
   move_history: string[];
   current_turn: PieceColor;
   game_code?: string;
-  // We'll handle these fields separately
-  last_activity?: string; 
   start_time?: string;
+  last_activity?: string;
 }
 
 // Convert ChessBoard to JSON-compatible object
@@ -206,7 +204,6 @@ export const joinGame = async (gameId: string, opponentId: string): Promise<bool
       .update({ 
         opponent_id: opponentId, 
         status: GameStatus.Active,
-        // Add start_time when the opponent joins
         start_time: new Date().toISOString() 
       })
       .eq('id', gameId)
@@ -231,7 +228,6 @@ export const startGame = async (gameId: string): Promise<boolean> => {
       .from('chess_games')
       .update({ 
         status: GameStatus.Active,
-        // Record the timestamp when the game starts
         start_time: new Date().toISOString()
       })
       .eq('id', gameId);
@@ -263,9 +259,7 @@ export const checkGameInactivity = async (gameId: string): Promise<{ inactive: b
     }
 
     // Game is considered inactive if no move has been made for 30+ seconds after start
-    // We'll access start_time from the data object directly, ensuring TypeScript doesn't complain
-    const startTimeStr = data.start_time as unknown as string;
-    const startTime = startTimeStr ? new Date(startTimeStr) : null;
+    const startTime = data.start_time ? new Date(data.start_time) : null;
     const now = new Date();
     
     // Check if move_history is an array and has a length property
