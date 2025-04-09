@@ -1,6 +1,6 @@
 
 import { executeSmartContractMethod, buildStakingTransaction, solToLamports, lamportsToSol } from './smartContract';
-import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js';
+import { PublicKey, Connection, Transaction, SystemProgram, clusterApiUrl } from '@solana/web3.js';
 import { ChessErrorCode, ChessGameAccount, GameStatus } from './walletTypes';
 
 // IDL definition that will be populated
@@ -90,6 +90,10 @@ export const chessGameContract: ChessGameContract = {
     try {
       if (!programId) throw new Error("Program ID not initialized");
       
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for createGame:", connection.rpcEndpoint);
+      
       // This will be implemented with actual Solana program call
       const result = await executeSmartContractMethod('createGame', [stakeLamports, timeControl]);
       
@@ -112,6 +116,10 @@ export const chessGameContract: ChessGameContract = {
     console.log(`Joining game ${gameId} with stake ${stake} SOL (${stakeLamports} lamports)`);
     try {
       if (!programId) throw new Error("Program ID not initialized");
+      
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for joinGame:", connection.rpcEndpoint);
       
       // This will be implemented with actual Solana program call
       const result = await executeSmartContractMethod('joinGame', [gameId]);
@@ -141,6 +149,10 @@ export const chessGameContract: ChessGameContract = {
     try {
       if (!programId) throw new Error("Program ID not initialized");
       
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for makeMove:", connection.rpcEndpoint);
+      
       // This will be implemented with actual Solana program call to makeMove instruction
       const result = await executeSmartContractMethod('makeMove', [gameId, fromSquare, toSquare]);
       
@@ -158,6 +170,10 @@ export const chessGameContract: ChessGameContract = {
   claimVictory: async (gameId: string, reason: string) => {
     console.log(`Claiming victory in game ${gameId} due to ${reason}`);
     try {
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for claimVictory:", connection.rpcEndpoint);
+      
       // This will be implemented with actual Solana program call
       const result = await executeSmartContractMethod('claimVictory', [gameId, reason]);
       
@@ -175,6 +191,10 @@ export const chessGameContract: ChessGameContract = {
   claimDraw: async (gameId: string, reason: string) => {
     console.log(`Claiming draw in game ${gameId} due to ${reason}`);
     try {
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for claimDraw:", connection.rpcEndpoint);
+      
       // This will be implemented with actual Solana program call
       const result = await executeSmartContractMethod('claimDraw', [gameId, reason]);
       
@@ -192,6 +212,10 @@ export const chessGameContract: ChessGameContract = {
   abortGame: async (gameId: string, reason: string) => {
     console.log(`Aborting game ${gameId} due to ${reason}`);
     try {
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for abortGame:", connection.rpcEndpoint);
+      
       // This will be implemented with actual Solana program call
       const result = await executeSmartContractMethod('abortGame', [gameId, reason]);
       
@@ -209,6 +233,10 @@ export const chessGameContract: ChessGameContract = {
   withdrawFunds: async (gameId: string) => {
     console.log(`Withdrawing funds from game ${gameId}`);
     try {
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for withdrawFunds:", connection.rpcEndpoint);
+      
       // This will be implemented with actual Solana program call
       const result = await executeSmartContractMethod('withdrawFunds', [gameId]);
       
@@ -226,6 +254,10 @@ export const chessGameContract: ChessGameContract = {
   getGameState: async (gameId: string) => {
     console.log(`Getting state for game ${gameId}`);
     try {
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for getGameState:", connection.rpcEndpoint);
+      
       // This would fetch the account data from the Solana blockchain
       // For now, we'll return a mock account
       return {
@@ -250,9 +282,18 @@ export const chessGameContract: ChessGameContract = {
   
   getUserGames: async (userAddress: string) => {
     console.log(`Getting games for user ${userAddress}`);
-    // This would query all games by pubkey
-    // For now, we'll return a mock game ID
-    return [`game_${Math.random().toString(36).substring(2, 10)}`];
+    try {
+      // Connect to devnet explicitly
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for getUserGames:", connection.rpcEndpoint);
+      
+      // This would query all games by pubkey
+      // For now, we'll return a mock game ID
+      return [`game_${Math.random().toString(36).substring(2, 10)}`];
+    } catch (error) {
+      console.error('Error getting user games:', error);
+      return [];
+    }
   }
 };
 
@@ -263,6 +304,10 @@ export const createStakingTransaction = async (walletPublicKey: string, stake: n
   }
   
   try {
+    // Connect to devnet explicitly for this transaction
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    console.log("Connected to Solana devnet for createStakingTransaction:", connection.rpcEndpoint);
+    
     return await buildStakingTransaction(walletPublicKey, stake, timeControl);
   } catch (error) {
     console.error('Error creating staking transaction:', error);

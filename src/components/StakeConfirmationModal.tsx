@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { createStakingTransaction } from '@/integrations/solana/smartContract';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TimeControl } from '@/utils/chessTypes';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
 
 interface StakeConfirmationModalProps {
   isOpen: boolean;
@@ -74,8 +75,9 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       setIsProcessing(true);
       console.log("Starting transaction process with wallet:", publicKey.toString());
       
-      // Connect to Solana devnet
-      const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+      // Explicitly connect to Solana devnet
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for transaction:", connection.rpcEndpoint);
       
       // Get the time control in seconds
       const timeInSeconds = timeControlObject ? timeControlObject.startTime : 600; // Default to 10 min if not provided

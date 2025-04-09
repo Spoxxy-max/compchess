@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Connection, clusterApiUrl } from '@solana/web3.js';
 
 interface JoinStakeConfirmationModalProps {
   isOpen: boolean;
@@ -97,6 +98,10 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         return;
       }
 
+      // Connect to Solana devnet
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      console.log("Connected to Solana devnet for join game:", connection.rpcEndpoint);
+
       // Join the game in the database first
       const joinSuccess = await joinGame(gameId, publicKey.toString());
       
@@ -128,7 +133,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
 
       // For non-zero stakes, we'd typically process the transaction here
       // This is simplified as the actual transaction logic would depend on your implementation
-      console.log(`Processing stake of ${stake} SOL for game ${gameId}`);
+      console.log(`Processing stake of ${stake} SOL for game ${gameId} on devnet`);
       
       // Simulate transaction processing
       setTimeout(() => {

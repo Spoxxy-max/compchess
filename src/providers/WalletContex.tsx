@@ -1,3 +1,4 @@
+
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import {
   ConnectionProvider,
@@ -24,9 +25,15 @@ interface WalletContextProps {
 }
 
 const WalletContext: FC<WalletContextProps> = ({ children }) => {
+  // Explicitly set network to Devnet
   const network = WalletAdapterNetwork.Devnet;
 
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  // Get the devnet endpoint
+  const endpoint = useMemo(() => {
+    const url = clusterApiUrl(network);
+    console.log("Using Solana devnet endpoint:", url);
+    return url;
+  }, [network]);
 
   const wallets = useMemo(
     () => [
@@ -38,7 +45,7 @@ const WalletContext: FC<WalletContextProps> = ({ children }) => {
     ],
     [network]
   );
-// hello
+
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
@@ -47,6 +54,7 @@ const WalletContext: FC<WalletContextProps> = ({ children }) => {
     </ConnectionProvider>
   );
 };
+
 const ConnectWalletButton = () => {
   const { publicKey, disconnect, connected } = useWallet();
 
@@ -57,14 +65,9 @@ const ConnectWalletButton = () => {
           ? `${publicKey?.toBase58().slice(0, 5)}...`
           : "Connect Wallet"}
       </WalletMultiButton>
-
-      {/* {connected && (
-        <button onClick={disconnect} className="wallet-disconnect-button">
-          Disconnect
-        </button>
-      )} */}
     </div>
   );
 };
+
 export { ConnectWalletButton };
 export default WalletContext;

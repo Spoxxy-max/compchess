@@ -6,7 +6,8 @@ import {
   Transaction, 
   SystemProgram, 
   LAMPORTS_PER_SOL, 
-  TransactionInstruction
+  TransactionInstruction,
+  clusterApiUrl
 } from '@solana/web3.js';
 
 // Game contract interface
@@ -59,8 +60,9 @@ class SolanaGameContract implements GameContract {
   
   constructor(programId: string = "chess_program_placeholder") {
     this.programId = programId;
-    // Connect to Solana devnet
-    this.connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    // Explicitly connect to Solana devnet
+    this.connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    console.log("Connected to Solana devnet at:", this.connection.rpcEndpoint);
   }
   
   async createGame(stake: number, timeControl: number): Promise<string> {
@@ -160,6 +162,10 @@ export const buildStakingTransaction = async (
     // For testing purposes, we'll use a known devnet program address that can receive funds
     // This is a demo wallet address that can receive funds (replace with your actual program ID in production)
     const chessGameProgramId = new PublicKey("Chess111111111111111111111111111111111111111");
+    
+    // Get the devnet connection
+    const devnetConnection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    console.log("Using devnet for transaction at:", devnetConnection.rpcEndpoint);
     
     // Add a system transfer instruction to the transaction
     // We'll use the transfer instruction to send funds to our escrow account
