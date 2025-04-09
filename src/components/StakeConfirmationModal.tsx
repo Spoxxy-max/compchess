@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -144,14 +143,8 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
       
       // Store the game code for display
       if (gameData) {
-        // Check if game_code exists in gameData
-        const receivedGameCode = (gameData as any).game_code;
-        if (receivedGameCode) {
-          setGameCode(receivedGameCode);
-        } else if (gameCode) {
-          // Fallback to our generated code if database doesn't return it
-          setGameCode(gameCode);
-        }
+        // Access game_code directly from gameData
+        setGameCode(gameData.game_code || gameCode);
       }
       
       toast({

@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { ChessBoard, PieceColor, TimeControl } from './chessTypes';
@@ -30,7 +29,7 @@ export interface GameData {
   board_state: ChessBoard;
   move_history: string[];
   current_turn: PieceColor;
-  game_code?: string; // Define game_code as an optional property
+  game_code?: string;
   // We'll handle these fields without database columns
   last_activity?: string; 
   start_time?: string;
@@ -38,12 +37,9 @@ export interface GameData {
 
 // Convert ChessBoard to JSON-compatible object
 const boardToJson = (board: ChessBoard): Json => {
-  // Use type assertion to avoid deep type instantiation issues
-  // First stringify the object to remove circular references and methods
-  // Then parse it back to a plain object
+  // Create a plain object through JSON serialization to remove any circular references or methods
   const plainObject = JSON.parse(JSON.stringify(board));
-  // Force type as unknown first to avoid TypeScript's deep type analysis
-  return plainObject as unknown as Json;
+  return plainObject as Json;
 };
 
 // Convert JSON back to ChessBoard

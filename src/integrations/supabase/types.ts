@@ -14,6 +14,7 @@ export type Database = {
           board_state: Json
           created_at: string
           current_turn: string
+          game_code: string | null
           host_id: string
           id: string
           move_history: Json
@@ -29,6 +30,7 @@ export type Database = {
           board_state: Json
           created_at?: string
           current_turn?: string
+          game_code?: string | null
           host_id: string
           id?: string
           move_history?: Json
@@ -44,6 +46,7 @@ export type Database = {
           board_state?: Json
           created_at?: string
           current_turn?: string
+          game_code?: string | null
           host_id?: string
           id?: string
           move_history?: Json
