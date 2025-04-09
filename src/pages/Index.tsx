@@ -59,6 +59,23 @@ const Index = () => {
           const gameData = await getGameById(gameId);
           
           if (gameData) {
+            // Prevent joining own game
+            if (publicKey && gameData.host_id === publicKey.toString()) {
+              toast({
+                title: "Cannot Join Own Game",
+                description: "You cannot join a game you created. Please create a new game or join another game.",
+                variant: "destructive",
+              });
+              
+              // Clean up URL
+              const url = new URL(window.location.href);
+              url.searchParams.delete('join');
+              window.history.replaceState({}, '', url.toString());
+              
+              setProcessingInviteGame(false);
+              return;
+            }
+            
             const timeControl = timeControlOptions.find(
               option => option.type === gameData.time_control
             ) || timeControlOptions[0];
@@ -91,6 +108,23 @@ const Index = () => {
           const gameData = await getGameByCode(gameCode);
           
           if (gameData) {
+            // Prevent joining own game
+            if (publicKey && gameData.host_id === publicKey.toString()) {
+              toast({
+                title: "Cannot Join Own Game",
+                description: "You cannot join a game you created. Please create a new game or join another game.",
+                variant: "destructive",
+              });
+              
+              // Clean up URL
+              const url = new URL(window.location.href);
+              url.searchParams.delete('code');
+              window.history.replaceState({}, '', url.toString());
+              
+              setProcessingInviteGame(false);
+              return;
+            }
+            
             const timeControl = timeControlOptions.find(
               option => option.type === gameData.time_control
             ) || timeControlOptions[0];
@@ -131,7 +165,7 @@ const Index = () => {
     };
     
     checkForGameInvite();
-  }, [location, isLoggedIn]);
+  }, [location, isLoggedIn, publicKey]);
 
   const generateShareableLink = (gameId: string, gameCode?: string) => {
     const baseUrl = window.location.origin;

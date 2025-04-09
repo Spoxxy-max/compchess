@@ -38,7 +38,7 @@ export interface GameData {
   move_history: string[];
   current_turn: PieceColor;
   game_code?: string;
-  // We'll handle these fields without database columns
+  // We'll handle these fields separately
   last_activity?: string; 
   start_time?: string;
 }
@@ -58,7 +58,7 @@ export interface Game {
   move_history: string[];
   current_turn: PieceColor;
   game_code?: string;
-  // We'll handle these fields without database columns
+  // We'll handle these fields separately
   last_activity?: string; 
   start_time?: string;
 }
@@ -146,7 +146,8 @@ export const getGameById = async (gameId: string): Promise<GameData | null> => {
     // Convert the data to our GameData interface
     return {
       ...data,
-      board_state: jsonToBoard(data.board_state)
+      board_state: jsonToBoard(data.board_state),
+      move_history: Array.isArray(data.move_history) ? data.move_history : []
     } as GameData;
   } catch (error) {
     console.error('Error getting game:', error);
@@ -171,7 +172,8 @@ export const getGameByCode = async (code: string): Promise<GameData | null> => {
     // Convert the data to our GameData interface
     return {
       ...data,
-      board_state: jsonToBoard(data.board_state)
+      board_state: jsonToBoard(data.board_state),
+      move_history: Array.isArray(data.move_history) ? data.move_history : []
     } as GameData;
   } catch (error) {
     console.error('Error getting game by code:', error);
@@ -182,9 +184,32 @@ export const getGameByCode = async (code: string): Promise<GameData | null> => {
 // Join a game
 export const joinGame = async (gameId: string, opponentId: string): Promise<boolean> => {
   try {
+    // First, check if the user is trying to join their own game
+    const { data: gameData, error: getError } = await supabase
+      .from('chess_games')
+      .select('host_id')
+      .eq('id', gameId)
+      .single();
+    
+    if (getError) {
+      console.error('Error checking game data:', getError);
+      return false;
+    }
+    
+    // Prevent joining own game
+    if (gameData.host_id === opponentId) {
+      console.error('Cannot join your own game');
+      return false;
+    }
+
     const { data, error } = await supabase
       .from('chess_games')
-      .update({ opponent_id: opponentId, status: GameStatus.Active })
+      .update({ 
+        opponent_id: opponentId, 
+        status: GameStatus.Active,
+        // Add start_time when the opponent joins
+        start_time: new Date().toISOString() 
+      })
       .eq('id', gameId)
       .select();
 
@@ -239,10 +264,15 @@ export const checkGameInactivity = async (gameId: string): Promise<{ inactive: b
     }
 
     // Game is considered inactive if no move has been made for 30+ seconds after start
+    // and if the start_time field exists
     const startTime = data.start_time ? new Date(data.start_time) : null;
     const now = new Date();
+    
+    // Check if move_history is an array and has a length property
+    const moveHistoryLength = Array.isArray(data.move_history) ? data.move_history.length : 0;
+    
     const inactive = startTime && now.getTime() - startTime.getTime() > 30000 && 
-                     data.move_history.length === 0;
+                     moveHistoryLength === 0;
 
     return { inactive };
   } catch (error) {
@@ -354,7 +384,8 @@ export const getActiveGamesForPlayer = async (playerId: string): Promise<GameDat
     // Convert the data to our GameData interface
     return data.map(game => ({
       ...game,
-      board_state: jsonToBoard(game.board_state)
+      board_state: jsonToBoard(game.board_state),
+      move_history: Array.isArray(game.move_history) ? game.move_history : []
     })) as GameData[];
   } catch (error) {
     console.error('Error getting active games:', error);
@@ -425,7 +456,8 @@ export const getAllGames = async (): Promise<GameData[]> => {
 
     return data.map(game => ({
       ...game,
-      board_state: jsonToBoard(game.board_state)
+      board_state: jsonToBoard(game.board_state),
+      move_history: Array.isArray(game.move_history) ? game.move_history : []
     })) as GameData[];
   } catch (error) {
     console.error('Error getting all games:', error);
@@ -449,7 +481,8 @@ export const getGamesCreatedByUser = async (userId: string): Promise<GameData[]>
 
     return data.map(game => ({
       ...game,
-      board_state: jsonToBoard(game.board_state)
+      board_state: jsonToBoard(game.board_state),
+      move_history: Array.isArray(game.move_history) ? game.move_history : []
     })) as GameData[];
   } catch (error) {
     console.error('Error getting games by user:', error);

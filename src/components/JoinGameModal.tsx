@@ -35,8 +35,14 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
     setLoading(true);
     try {
       const games = await getAllGames();
-      setAvailableGames(games);
-      setFilteredGames(games);
+      
+      // Filter out games created by the current user
+      const filteredGames = publicKey 
+        ? games.filter(game => game.host_id !== publicKey.toString()) 
+        : games;
+        
+      setAvailableGames(filteredGames);
+      setFilteredGames(filteredGames);
     } catch (error) {
       console.error('Error fetching games:', error);
       toast({
@@ -67,6 +73,9 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
       if (showMyGames && publicKey) {
         const userGames = await getGamesCreatedByUser(publicKey.toString());
         filtered = userGames;
+      } else if (!showMyGames && publicKey) {
+        // If not showing my games, filter out games created by the current user
+        filtered = filtered.filter(game => game.host_id !== publicKey.toString());
       }
 
       // Apply search filter
@@ -86,6 +95,16 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   }, [searchTerm, showMyGames, availableGames, publicKey]);
 
   const handleJoinGame = (game: GameData) => {
+    // Don't allow joining your own games
+    if (publicKey && game.host_id === publicKey.toString()) {
+      toast({
+        title: 'Cannot Join',
+        description: 'You cannot join a game you created',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     const timeControl = timeControlOptions.find(tc => tc.type === game.time_control) || timeControlOptions[0];
     onJoinGame(game.id, game.stake, timeControl);
   };
@@ -190,8 +209,12 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
 
   const canJoinGame = (game: GameData) => {
     if (!publicKey) return false;
-    if (isMyGame(game)) return true; // Allow joining your own games
-    return game.status === 'waiting'; // Can only join games in waiting status
+    
+    // Cannot join your own game
+    if (isMyGame(game)) return false;
+    
+    // Can only join games in waiting status
+    return game.status === 'waiting';
   };
 
   return (
@@ -317,7 +340,7 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
                               onClick={() => handleJoinGame(game)}
                               className="whitespace-nowrap bg-solana hover:bg-solana-dark text-white text-xs py-1 h-7"
                             >
-                              {isMyGame(game) && game.status === 'active' ? 'Resume' : 'Join'}
+                              Join
                             </Button>
                           )}
                         </div>
