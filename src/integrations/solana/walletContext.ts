@@ -1,3 +1,4 @@
+
 import { createContext, useContext } from 'react';
 import { WalletAdapter, WalletType } from './walletTypes';
 
@@ -9,8 +10,9 @@ export interface WalletContextType {
   connectWallet: (type?: WalletType) => Promise<WalletAdapter | void>;
   disconnectWallet: () => Promise<void>;
   smartContractExecute: (method: string, params: any) => Promise<any>;
-  isMobileDevice?: boolean;
-  mobileWalletDetected?: boolean;
+  isMobileDevice: boolean;
+  mobileWalletDetected: boolean;
+  detectedMobileWallets: { type: WalletType; name: string }[];
 }
 
 const defaultContext: WalletContextType = {
@@ -21,7 +23,8 @@ const defaultContext: WalletContextType = {
   disconnectWallet: async () => {},
   smartContractExecute: async () => ({ success: false, error: "Context not initialized" }),
   isMobileDevice: false,
-  mobileWalletDetected: false
+  mobileWalletDetected: false,
+  detectedMobileWallets: []
 };
 
 export const WalletContext = createContext<WalletContextType>(defaultContext);

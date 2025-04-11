@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { TimeControl } from '../utils/chessTypes';
 import { joinGame, getGameById, subscribeToGame } from '../utils/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
-import { useWallet } from '@solana/wallet-adapter-react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { useWallet } from '../integrations/solana/walletContext';
+import { Loader2, AlertCircle, RefreshCw, WalletIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 
@@ -36,24 +36,11 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
   const [gameExists, setGameExists] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
   const { toast } = useToast();
-  const { publicKey } = useWallet();
+  const { wallet, connectWallet, isMobileDevice, mobileWalletDetected, detectedMobileWallets } = useWallet();
   const navigate = useNavigate();
   const [retryAttempts, setRetryAttempts] = useState(0);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
-
-  // Detect if user is on a mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
-      setIsMobileDevice(isMobile);
-      console.log("Device is mobile:", isMobile);
-    };
-    
-    checkMobile();
-  }, []);
-
+  const [walletConnecting, setWalletConnecting] = useState(false);
+  
   // Clear error when modal opens or closes
   useEffect(() => {
     if (isOpen) {
@@ -98,13 +85,13 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
       }
       
       // Check if the user is trying to join their own game
-      if (publicKey && gameData.host_id === publicKey.toString()) {
+      if (wallet?.publicKey && gameData.host_id === wallet.publicKey.toString()) {
         setError("You cannot join your own game");
         return;
       }
       
       // Check if user already joined this game
-      if (publicKey && gameData.opponent_id === publicKey.toString()) {
+      if (wallet?.publicKey && gameData.opponent_id === wallet.publicKey.toString()) {
         setAlreadyJoined(true);
         console.log("User is already joined to this game");
       } else {
@@ -137,8 +124,40 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
     }
   };
 
+  const handleConnectWallet = async (type?: string) => {
+    if (walletConnecting) return;
+    
+    try {
+      setWalletConnecting(true);
+      setError(null);
+      
+      console.log(`Attempting to connect wallet of type: ${type || 'auto'}`);
+      
+      await connectWallet(type as any);
+      
+      // After connecting, recheck game status
+      checkGameStatus();
+      
+      toast({
+        title: "Wallet Connected",
+        description: "Your wallet has been connected successfully",
+      });
+    } catch (error: any) {
+      console.error("Failed to connect wallet:", error);
+      setError(`Wallet connection failed: ${error.message || "Unknown error"}`);
+      
+      toast({
+        title: "Connection Failed",
+        description: error.message || "Failed to connect wallet",
+        variant: "destructive",
+      });
+    } finally {
+      setWalletConnecting(false);
+    }
+  };
+
   const handleConfirm = async () => {
-    if (!publicKey) {
+    if (!wallet?.publicKey) {
       toast({
         title: "Wallet Not Connected",
         description: "Please connect your wallet to join the game",
@@ -191,7 +210,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
       }
 
       // Check if game is already full
-      if (gameData.opponent_id && gameData.opponent_id !== publicKey.toString()) {
+      if (gameData.opponent_id && gameData.opponent_id !== wallet.publicKey.toString()) {
         throw new Error("This game already has an opponent");
       }
 
@@ -201,20 +220,44 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
       }
       
       // Check that user isn't joining their own game
-      if (gameData.host_id === publicKey.toString()) {
+      if (gameData.host_id === wallet.publicKey.toString()) {
         throw new Error("You cannot join your own game");
       }
 
       try {
-        // Join the game in the database - this is the part that may be failing on mobile
-        console.log("Joining game with user public key:", publicKey.toString());
-        const joinSuccess = await joinGame(gameId, publicKey.toString());
+        // Join the game in the database with exponential backoff retry
+        const MAX_RETRIES = 3;
+        let currentRetry = 0;
+        let joinSuccess = false;
         
-        if (!joinSuccess) {
-          throw new Error("Failed to join the game. Please try again.");
+        while (currentRetry < MAX_RETRIES && !joinSuccess) {
+          try {
+            console.log(`Join attempt ${currentRetry + 1} with user public key:`, wallet.publicKey.toString());
+            joinSuccess = await joinGame(gameId, wallet.publicKey.toString());
+            
+            if (joinSuccess) {
+              console.log("Successfully joined game in database");
+              break;
+            }
+          } catch (joinErr: any) {
+            console.error(`Join attempt ${currentRetry + 1} failed:`, joinErr);
+            
+            // Only throw on the last attempt
+            if (currentRetry === MAX_RETRIES - 1) {
+              throw joinErr;
+            }
+            
+            // Wait before retry (exponential backoff)
+            const delay = Math.pow(2, currentRetry) * 500; // 500ms, 1s, 2s
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          currentRetry++;
         }
         
-        console.log("Successfully joined game in database");
+        if (!joinSuccess) {
+          throw new Error("Failed to join the game after multiple attempts");
+        }
 
         // If stake is zero, we don't need to process a transaction
         if (stake === 0) {
@@ -289,6 +332,54 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
     }
   }, [isOpen, isProcessing]);
 
+  // Render mobile wallet options if on mobile device
+  const renderMobileWalletOptions = () => {
+    if (!isMobileDevice) return null;
+    
+    return (
+      <div className="mt-4 space-y-3">
+        <h3 className="text-sm font-medium text-gray-300">Connect with:</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {(detectedMobileWallets && detectedMobileWallets.length > 0) ? (
+            detectedMobileWallets.map((walletInfo) => (
+              <Button 
+                key={walletInfo.type}
+                variant="outline" 
+                className="flex items-center justify-center space-x-2 h-12"
+                onClick={() => handleConnectWallet(walletInfo.type)}
+                disabled={walletConnecting}
+              >
+                <WalletIcon className="h-4 w-4" />
+                <span>{walletInfo.name}</span>
+              </Button>
+            ))
+          ) : (
+            <>
+              <Button 
+                variant="outline" 
+                className="flex items-center justify-center space-x-2 h-12"
+                onClick={() => handleConnectWallet('phantom')}
+                disabled={walletConnecting}
+              >
+                <WalletIcon className="h-4 w-4" />
+                <span>Phantom</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex items-center justify-center space-x-2 h-12"
+                onClick={() => handleConnectWallet('solflare')}
+                disabled={walletConnecting}
+              >
+                <WalletIcon className="h-4 w-4" />
+                <span>Solflare</span>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={isProcessing ? undefined : onClose}>
       <DialogContent className="bg-card sm:max-w-[425px]">
@@ -334,12 +425,23 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
               </div>
             )}
             
+            {isMobileDevice && !wallet?.publicKey && (
+              renderMobileWalletOptions()
+            )}
+            
             {isMobileDevice && retryAttempts > 0 && (
               <div className="mt-2 bg-yellow-500/20 border border-yellow-500/30 p-3 rounded-md">
                 <p className="text-sm text-yellow-200">
                   On mobile devices, sometimes it takes a few attempts to connect properly. 
                   Please make sure your wallet is connected and try again.
                 </p>
+                <Button 
+                  className="mt-2 w-full bg-yellow-600/50 hover:bg-yellow-600" 
+                  onClick={checkGameStatus}
+                  size="sm"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" /> Refresh Game Status
+                </Button>
               </div>
             )}
             
@@ -355,28 +457,50 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
           </div>
         </div>
         
-        <DialogFooter>
+        <DialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between">
           <Button 
             variant="outline" 
             onClick={onClose}
             disabled={isProcessing}
+            className="sm:mr-2"
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleConfirm}
-            disabled={isProcessing || !gameExists || (!!error && !retryAttempts)}
-            className="bg-solana hover:bg-solana-dark text-white"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              alreadyJoined ? 'Rejoin Game' : (stake > 0 ? `Stake ${stake} SOL` : 'Join Game')
-            )}
-          </Button>
+          
+          {!wallet?.publicKey ? (
+            <Button 
+              onClick={() => handleConnectWallet()}
+              className="bg-solana hover:bg-solana-dark text-white"
+              disabled={walletConnecting}
+            >
+              {walletConnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <WalletIcon className="mr-2 h-4 w-4" />
+                  Connect Wallet
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleConfirm}
+              disabled={isProcessing || !gameExists || (!!error && !retryAttempts)}
+              className="bg-solana hover:bg-solana-dark text-white"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                alreadyJoined ? 'Rejoin Game' : (stake > 0 ? `Stake ${stake} SOL` : 'Join Game')
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
