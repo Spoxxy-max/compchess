@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import CountdownTimer from './CountdownTimer';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Copy, Users, Clock } from 'lucide-react';
+import { Loader2, Copy, Users, Clock, Check } from 'lucide-react';
 import { getGameById, GameData, subscribeToGame, supabase } from '../utils/supabaseClient';
 import { Button } from '@/components/ui/button';
 

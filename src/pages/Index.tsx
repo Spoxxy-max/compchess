@@ -31,12 +31,18 @@ const Index = () => {
   const [isCodePromptOpen, setIsCodePromptOpen] = useState(false);
   const [userGameCode, setUserGameCode] = useState('');
   const [isProcessingCode, setIsProcessingCode] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [processingInviteGame, setProcessingInviteGame] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [animationComplete, setAnimationComplete] = useState(false);
   const { wallet, publicKey } = useWallet();
+
+  useEffect(() => {
+    setIsLoggedIn(!!publicKey);
+  }, [publicKey]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
