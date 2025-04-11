@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -269,9 +268,44 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [wallet, setWallet] = useState<WalletAdapter | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [availableWallets, setAvailableWallets] = useState<{ type: WalletType; name: string }[]>([]);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [mobileWalletDetected, setMobileWalletDetected] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const checkMobileDevice = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobileDevice(isMobile);
+      
+      // Check for mobile wallet availability
+      const hasPhantom = window.phantom?.solana;
+      const hasSolflare = window.solflare;
+      const hasTrustWallet = window.trustwallet || window.solana?.isTrust;
+      const hasBackpack = window.backpack?.solana;
+      
+      const hasMobileWallet = hasPhantom || hasSolflare || hasTrustWallet || hasBackpack;
+      setMobileWalletDetected(hasMobileWallet);
+      
+      console.log("Mobile device detection:", { 
+        isMobile, 
+        hasPhantom, 
+        hasSolflare, 
+        hasTrustWallet, 
+        hasBackpack,
+        hasMobileWallet
+      });
+    };
+    
+    checkMobileDevice();
+    
+    // Also check when visibility changes (user might have installed wallet in another tab)
+    document.addEventListener('visibilitychange', checkMobileDevice);
+    return () => {
+      document.removeEventListener('visibilitychange', checkMobileDevice);
+    };
+  }, []);
 
   useEffect(() => {
     const wallets = getAvailableWallets();
@@ -294,6 +328,21 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     window.addEventListener("beforeunload", disconnectOnReload);
 
+    // Try to reconnect last used wallet if available
+    const tryReconnectWallet = async () => {
+      const lastWalletType = localStorage.getItem('lastWalletType') as WalletType | null;
+      if (lastWalletType) {
+        console.log("Attempting to reconnect last wallet:", lastWalletType);
+        try {
+          await connectWallet(lastWalletType);
+        } catch (error) {
+          console.log("Auto reconnect failed, user will need to connect manually");
+        }
+      }
+    };
+    
+    tryReconnectWallet();
+
     return () => {
       window.removeEventListener("beforeunload", disconnectOnReload);
     };
@@ -308,47 +357,73 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       const newWallet = createWallet(type);
 
-      // Check if on mobile
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      // Handle mobile wallet connection
-      if (isMobile) {
+      // Enhanced mobile wallet detection and handling
+      if (isMobileDevice) {
+        console.log("Mobile device detected, checking for wallet apps...");
+        
         try {
-          // If on mobile, we'll try to use the wallet adapter directly
-          // or create a deep link to open the wallet app
-          if (type === 'phantom' && !window.phantom?.solana) {
-            window.location.href = `https://phantom.app/ul/browse/${window.location.href}`;
-            return;
+          // Check if specific wallet is available on mobile
+          const walletName = type || 'auto';
+          
+          // Phantom wallet
+          if (type === 'phantom') {
+            if (window.phantom?.solana) {
+              console.log("Phantom wallet detected on mobile");
+            } else {
+              console.log("Phantom wallet not detected, opening app or store");
+              // Direct to Phantom wallet
+              window.location.href = `https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`;
+              setConnecting(false);
+              return;
+            }
           } 
-          if (type === 'solflare' && !window.solflare) {
-            window.location.href = `https://solflare.com/ul/browse/${window.location.href}`;
-            return;
+          // Solflare wallet
+          else if (type === 'solflare') {
+            if (window.solflare) {
+              console.log("Solflare wallet detected on mobile");
+            } else {
+              console.log("Solflare wallet not detected, opening app or store");
+              // Direct to Solflare wallet
+              window.location.href = `https://solflare.com/ul/browse/${encodeURIComponent(window.location.href)}`;
+              setConnecting(false);
+              return;
+            }
           }
-          if (type === 'trustwallet' && !(window.trustwallet || window.solana?.isTrust)) {
-            window.location.href = `https://link.trustwallet.com/open_url?url=${window.location.href}`;
-            return;
+          // Trust wallet 
+          else if (type === 'trustwallet') {
+            if (window.trustwallet || window.solana?.isTrust) {
+              console.log("Trust wallet detected on mobile");
+            } else {
+              console.log("Trust wallet not detected, opening app or store");
+              // Direct to Trust Wallet
+              window.location.href = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(window.location.href)}`;
+              setConnecting(false);
+              return;
+            }
           }
-          // For backpack and other wallets, attempt to use their deep links if available
+          // Backpack wallet
+          else if (type === 'backpack') {
+            if (window.backpack?.solana) {
+              console.log("Backpack wallet detected on mobile");
+            } else {
+              console.log("Backpack wallet not detected, opening app or store");
+              // Direct to wallet website for now (no deep link available)
+              window.location.href = "https://www.backpack.app/download";
+              setConnecting(false);
+              return;
+            }
+          }
+          
+          // If we made it here, a supported wallet is available, try to connect
+          console.log(`Connecting to ${walletName} wallet on mobile`);
+          
         } catch (mobileError) {
           console.error("Mobile wallet connection error:", mobileError);
-        }
-      } else {
-        // Desktop wallet extension checks
-        if (type === 'phantom' && !window.phantom?.solana) {
-          throw new Error('Phantom wallet is not installed. Please install it from https://phantom.app/');
-        } 
-        if (type === 'solflare' && !window.solflare) {
-          throw new Error('Solflare wallet is not installed. Please install it from https://solflare.com/');
-        } 
-        if (type === 'trustwallet' && !(window.trustwallet || window.solana?.isTrust)) {
-          throw new Error('Trust Wallet is not installed. Please install it from https://trustwallet.com/');
-        } 
-        if (type === 'backpack' && !window.backpack?.solana) {
-          throw new Error('Backpack wallet is not installed. Please install it from https://www.backpack.app/');
         }
       }
 
       try {
+        console.log("Connecting to wallet adapter...");
         await newWallet.connect();
         
         console.log(`${newWallet.walletName} wallet connected:`, newWallet.publicKey);
@@ -363,9 +438,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         return newWallet;
       } catch (connectError: any) {
-        // If connection fails due to a fetch error, try to proceed with a fake PK
-        if (connectError.message === 'Failed to fetch') {
-          console.warn("Balance fetch failed, but continuing with wallet connection");
+        console.error("Wallet connection error:", connectError);
+        
+        // If connection fails due to a fetch error, try to proceed with a fake PK for development
+        if (connectError.message === 'Failed to fetch' || process.env.NODE_ENV === 'development') {
+          console.warn("Balance fetch failed or in development mode, continuing with wallet connection");
           
           // Force the connection without network dependency
           newWallet.connected = true;
@@ -475,7 +552,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         availableWallets,
         connectWallet, 
         disconnectWallet,
-        smartContractExecute
+        smartContractExecute,
+        isMobileDevice,
+        mobileWalletDetected
       }}
     >
       {children}

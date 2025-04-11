@@ -38,11 +38,27 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
   const { toast } = useToast();
   const { publicKey } = useWallet();
   const navigate = useNavigate();
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+  // Detect if user is on a mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+      setIsMobileDevice(isMobile);
+      console.log("Device is mobile:", isMobile);
+    };
+    
+    checkMobile();
+  }, []);
 
   // Clear error when modal opens or closes
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      setRetryAttempts(0);
       checkGameStatus();
     } else {
       // Clean up subscription if modal closes
@@ -64,6 +80,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
     if (!gameId) return;
     
     try {
+      console.log("Checking game status for:", gameId);
       const gameData = await getGameById(gameId);
       
       if (!gameData) {
@@ -71,6 +88,8 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         setError("Game not found or no longer available");
         return;
       }
+      
+      console.log("Retrieved game data:", JSON.stringify(gameData, null, 2));
       
       // Check if game is already full
       if (gameData.opponent_id && gameData.status !== 'waiting') {
@@ -172,7 +191,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
       }
 
       // Check if game is already full
-      if (gameData.opponent_id) {
+      if (gameData.opponent_id && gameData.opponent_id !== publicKey.toString()) {
         throw new Error("This game already has an opponent");
       }
 
@@ -186,60 +205,68 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         throw new Error("You cannot join your own game");
       }
 
-      // Join the game in the database
-      const joinSuccess = await joinGame(gameId, publicKey.toString());
-      
-      if (!joinSuccess) {
-        throw new Error("Failed to join the game. Please try again.");
-      }
+      try {
+        // Join the game in the database - this is the part that may be failing on mobile
+        console.log("Joining game with user public key:", publicKey.toString());
+        const joinSuccess = await joinGame(gameId, publicKey.toString());
+        
+        if (!joinSuccess) {
+          throw new Error("Failed to join the game. Please try again.");
+        }
+        
+        console.log("Successfully joined game in database");
 
-      // If stake is zero, we don't need to process a transaction
-      if (stake === 0) {
-        toast({
-          title: "Game Joined",
-          description: "You've successfully joined the game!",
-        });
-        
-        // Immediately navigate to the game page
-        navigate(`/game/${gameId}`, {
-          state: {
-            timeControl: timeControlObject,
-            stake: stake,
-            playerColor: 'black',
-            gameId: gameId
-          }
-        });
-        
-        onConfirm(gameId);
-        onClose();
-        return;
-      }
+        // If stake is zero, we don't need to process a transaction
+        if (stake === 0) {
+          toast({
+            title: "Game Joined",
+            description: "You've successfully joined the game!",
+          });
+          
+          // Immediately navigate to the game page
+          navigate(`/game/${gameId}`, {
+            state: {
+              timeControl: timeControlObject,
+              stake: stake,
+              playerColor: 'black',
+              gameId: gameId
+            }
+          });
+          
+          onConfirm(gameId);
+          onClose();
+          return;
+        }
 
-      // For non-zero stakes, we'd typically process the transaction here
-      // This is simplified as the actual transaction logic would depend on your implementation
-      console.log(`Processing stake of ${stake} SOL for game ${gameId} on devnet`);
-      
-      // Simulate transaction processing
-      setTimeout(() => {
-        toast({
-          title: "Stake Confirmed",
-          description: `You've staked ${stake} SOL to join the game!`,
-        });
+        // For non-zero stakes, we'd typically process the transaction here
+        // This is simplified as the actual transaction logic would depend on your implementation
+        console.log(`Processing stake of ${stake} SOL for game ${gameId} on devnet`);
         
-        // Navigate to the game page after successful staking
-        navigate(`/game/${gameId}`, {
-          state: {
-            timeControl: timeControlObject,
-            stake: stake,
-            playerColor: 'black',
-            gameId: gameId
-          }
-        });
-        
-        onConfirm(gameId);
-        onClose();
-        setIsProcessing(false);
-      }, 1500);
+        // Simulate transaction processing
+        setTimeout(() => {
+          toast({
+            title: "Stake Confirmed",
+            description: `You've staked ${stake} SOL to join the game!`,
+          });
+          
+          // Navigate to the game page after successful staking
+          navigate(`/game/${gameId}`, {
+            state: {
+              timeControl: timeControlObject,
+              stake: stake,
+              playerColor: 'black',
+              gameId: gameId
+            }
+          });
+          
+          onConfirm(gameId);
+          onClose();
+          setIsProcessing(false);
+        }, 1500);
+      } catch (joinError: any) {
+        console.error("Error in join game process:", joinError);
+        throw joinError;
+      }
       
     } catch (error: any) {
       console.error("Error joining game:", error);
@@ -250,6 +277,8 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
         variant: "destructive",
       });
       setIsProcessing(false);
+      // Increment retry attempts
+      setRetryAttempts(prev => prev + 1);
     }
   };
 
@@ -305,6 +334,15 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
               </div>
             )}
             
+            {isMobileDevice && retryAttempts > 0 && (
+              <div className="mt-2 bg-yellow-500/20 border border-yellow-500/30 p-3 rounded-md">
+                <p className="text-sm text-yellow-200">
+                  On mobile devices, sometimes it takes a few attempts to connect properly. 
+                  Please make sure your wallet is connected and try again.
+                </p>
+              </div>
+            )}
+            
             {!alreadyJoined && (
               <div className="mt-4 bg-secondary/30 p-4 rounded-md text-sm space-y-2">
                 <p>
@@ -327,7 +365,7 @@ const JoinStakeConfirmationModal: React.FC<JoinStakeConfirmationModalProps> = ({
           </Button>
           <Button 
             onClick={handleConfirm}
-            disabled={isProcessing || !gameExists || !!error}
+            disabled={isProcessing || !gameExists || (!!error && !retryAttempts)}
             className="bg-solana hover:bg-solana-dark text-white"
           >
             {isProcessing ? (
