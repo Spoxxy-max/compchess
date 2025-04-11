@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../components/Header';
@@ -13,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Copy, Check, Share2 } from 'lucide-react';
+import { Copy, Check, Share2, Hash } from 'lucide-react';
 import { getGameById, getGameByCode } from '../utils/supabaseClient';
 
 const Index = () => {
@@ -29,15 +28,15 @@ const Index = () => {
   const [selectedGameId, setSelectedGameId] = useState<string>('');
   const [shareableLink, setShareableLink] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [isCodePromptOpen, setIsCodePromptOpen] = useState(false);
+  const [userGameCode, setUserGameCode] = useState('');
+  const [isProcessingCode, setIsProcessingCode] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [animationComplete, setAnimationComplete] = useState(false);
   const { wallet, publicKey } = useWallet();
-  const [processingInviteGame, setProcessingInviteGame] = useState(false);
-
-  const isLoggedIn = wallet?.adapter.connected;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -59,7 +58,6 @@ const Index = () => {
           const gameData = await getGameById(gameId);
           
           if (gameData) {
-            // Prevent joining own game
             if (publicKey && gameData.host_id === publicKey.toString()) {
               toast({
                 title: "Cannot Join Own Game",
@@ -67,7 +65,6 @@ const Index = () => {
                 variant: "destructive",
               });
               
-              // Clean up URL
               const url = new URL(window.location.href);
               url.searchParams.delete('join');
               window.history.replaceState({}, '', url.toString());
@@ -108,7 +105,6 @@ const Index = () => {
           const gameData = await getGameByCode(gameCode);
           
           if (gameData) {
-            // Prevent joining own game
             if (publicKey && gameData.host_id === publicKey.toString()) {
               toast({
                 title: "Cannot Join Own Game",
@@ -116,7 +112,6 @@ const Index = () => {
                 variant: "destructive",
               });
               
-              // Clean up URL
               const url = new URL(window.location.href);
               url.searchParams.delete('code');
               window.history.replaceState({}, '', url.toString());
@@ -134,7 +129,6 @@ const Index = () => {
             setSelectedTimeControl(timeControl);
             setIsJoinStakeConfirmationModalOpen(true);
             
-            // Clean up URL
             const url = new URL(window.location.href);
             url.searchParams.delete('code');
             window.history.replaceState({}, '', url.toString());
@@ -199,6 +193,73 @@ const Index = () => {
     }
   };
 
+  const handleJoinGameByCode = () => {
+    if (isLoggedIn) {
+      setIsCodePromptOpen(true);
+    } else {
+      toast({
+        title: "Not Connected",
+        description: "Please connect your wallet to join a game",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleProcessGameCode = async () => {
+    if (!userGameCode.trim() || userGameCode.length !== 6) {
+      toast({
+        title: "Invalid Code",
+        description: "Please enter a valid 6-character game code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingCode(true);
+    
+    try {
+      const game = await getGameByCode(userGameCode.trim());
+      
+      if (!game) {
+        toast({
+          title: "Game Not Found",
+          description: "No game found with this code or the game is no longer available",
+          variant: "destructive",
+        });
+        setIsProcessingCode(false);
+        return;
+      }
+      
+      if (publicKey && game.host_id === publicKey.toString()) {
+        toast({
+          title: "Cannot Join Own Game",
+          description: "You cannot join a game you created",
+          variant: "destructive",
+        });
+        setIsProcessingCode(false);
+        return;
+      }
+      
+      const timeControl = timeControlOptions.find(tc => tc.type === game.time_control) || timeControlOptions[0];
+      
+      setSelectedGameId(game.id);
+      setStakeAmount(game.stake);
+      setSelectedTimeControl(timeControl);
+      setIsCodePromptOpen(false);
+      setIsProcessingCode(false);
+      setIsJoinStakeConfirmationModalOpen(true);
+      
+    } catch (error) {
+      console.error('Error joining game by code:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to join the game. Please try again.',
+        variant: 'destructive',
+      });
+      setIsProcessingCode(false);
+    }
+  };
+
   const handleCloseStakeConfirmationModal = () => {
     setIsStakeConfirmationModalOpen(false);
   };
@@ -211,7 +272,6 @@ const Index = () => {
   };
 
   const handleConfirmStake = async () => {
-    // The navigation is now handled by the StakeConfirmationModal after it shows the game code
     navigate(`/game/${selectedGameId}`, {
       state: {
         timeControl: selectedTimeControl,
@@ -233,7 +293,6 @@ const Index = () => {
   const handleConfirmJoinStake = async (gameId: string) => {
     console.log("Join stake confirmed for game:", gameId);
     
-    // Navigate to the game page
     navigate(`/game/${gameId}`, {
       state: {
         timeControl: selectedTimeControl,
@@ -338,6 +397,14 @@ const Index = () => {
                   Join Game
                 </Button>
               </div>
+              <Button
+                onClick={handleJoinGameByCode}
+                variant="ghost"
+                className="flex items-center gap-2 text-solana hover:text-solana hover:bg-solana/5"
+              >
+                <Hash className="h-4 w-4" />
+                Join with Game Code
+              </Button>
             </div>
           </div>
 
@@ -506,6 +573,63 @@ const Index = () => {
               className="bg-solana hover:bg-solana-dark text-white"
             >
               Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isCodePromptOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsCodePromptOpen(false);
+          setUserGameCode('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Join Game with Code</DialogTitle>
+            <DialogDescription>
+              Enter the 6-character game code shared by your opponent
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="relative">
+              <Hash className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                value={userGameCode}
+                onChange={(e) => setUserGameCode(e.target.value.toUpperCase())}
+                placeholder="Enter game code"
+                className="pl-9 uppercase text-center tracking-widest font-mono"
+                maxLength={6}
+              />
+            </div>
+            
+            <div className="bg-secondary/30 p-3 rounded-md text-sm text-gray-300">
+              Game codes are shared by players who create games. Enter the code to join their game directly.
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => setIsCodePromptOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleProcessGameCode}
+              disabled={userGameCode.length !== 6 || isProcessingCode}
+              className="w-full sm:w-auto bg-solana hover:bg-solana-dark text-white"
+            >
+              {isProcessingCode ? (
+                <>
+                  <Hash className="mr-2 h-4 w-4 animate-pulse" />
+                  Checking...
+                </>
+              ) : (
+                'Find Game'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

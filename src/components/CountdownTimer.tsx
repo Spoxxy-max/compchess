@@ -27,6 +27,7 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const animationClasses = {
     'pulse': 'animate-pulse',
     'bounce': 'animate-bounce',
+    'spin': 'animate-spin',
     'none': ''
   };
 
@@ -43,6 +44,8 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
       // Change animation based on time left
       if (timeLeft <= 3) {
         setAnimation('bounce');
+      } else if (timeLeft <= 10) {
+        setAnimation('pulse');
       }
     }, 1000);
 
@@ -51,7 +54,13 @@ const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className={`font-mono font-bold ${sizeClasses[size]} ${animationClasses[animation]} text-solana`}>
+      <div 
+        className={`font-mono font-bold ${sizeClasses[size]} ${animationClasses[animation]} text-solana transition-all duration-300`}
+        style={{ 
+          textShadow: timeLeft <= 3 ? '0 0 10px rgba(20, 241, 149, 0.5)' : 'none',
+          transform: `scale(${timeLeft <= 3 ? 1.1 : 1})`
+        }}
+      >
         {timeLeft}
       </div>
       <p className="text-gray-400 mt-2">

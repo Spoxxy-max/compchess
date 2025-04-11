@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Clock, Search, ChevronDown, Hash } from 'lucide-react';
+import { Loader2, Clock, Search, ChevronDown, Hash, ExternalLink } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useNavigate } from 'react-router-dom';
 import { getAllGames, getGamesCreatedByUser, GameData, getGameByCode } from '../utils/supabaseClient';
 import { timeControlOptions } from '../utils/chessUtils';
 import { TimeControl } from '../utils/chessTypes';
@@ -30,19 +31,26 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
   const [isJoiningByCode, setIsJoiningByCode] = useState(false);
   const { wallet, publicKey } = useWallet();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const fetchGames = async () => {
     setLoading(true);
     try {
-      const games = await getAllGames();
+      let games: GameData[] = [];
       
-      // Filter out games created by the current user
-      const filteredGames = publicKey 
-        ? games.filter(game => game.host_id !== publicKey.toString()) 
-        : games;
+      if (showMyGames && publicKey) {
+        games = await getGamesCreatedByUser(publicKey.toString());
+      } else {
+        games = await getAllGames();
         
-      setAvailableGames(filteredGames);
-      setFilteredGames(filteredGames);
+        // Filter out games created by the current user
+        if (publicKey) {
+          games = games.filter(game => game.host_id !== publicKey.toString());
+        }
+      }
+      
+      setAvailableGames(games);
+      setFilteredGames(games);
     } catch (error) {
       console.error('Error fetching games:', error);
       toast({
@@ -61,38 +69,28 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
       setGameCode('');
       setIsJoiningByCode(false);
     }
-  }, [isOpen]);
+  }, [isOpen, showMyGames]);
 
   useEffect(() => {
     if (!publicKey) return;
 
     const applyFilters = async () => {
-      let filtered = [...availableGames];
-
-      // Apply "My Games" filter
-      if (showMyGames && publicKey) {
-        const userGames = await getGamesCreatedByUser(publicKey.toString());
-        filtered = userGames;
-      } else if (!showMyGames && publicKey) {
-        // If not showing my games, filter out games created by the current user
-        filtered = filtered.filter(game => game.host_id !== publicKey.toString());
-      }
-
-      // Apply search filter
       if (searchTerm.trim() !== '') {
         const term = searchTerm.toLowerCase();
-        filtered = filtered.filter(
+        const filtered = availableGames.filter(
           game => 
             game.host_id.toLowerCase().includes(term) ||
-            (game.time_control && game.time_control.toLowerCase().includes(term))
+            (game.time_control && game.time_control.toLowerCase().includes(term)) ||
+            (game.game_code && game.game_code.toLowerCase().includes(term))
         );
+        setFilteredGames(filtered);
+      } else {
+        setFilteredGames(availableGames);
       }
-
-      setFilteredGames(filtered);
     };
 
     applyFilters();
-  }, [searchTerm, showMyGames, availableGames, publicKey]);
+  }, [searchTerm, availableGames, publicKey]);
 
   const handleJoinGame = (game: GameData) => {
     // Don't allow joining your own games
@@ -145,6 +143,17 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
         return;
       }
       
+      // Check if game is already joined
+      if (game.opponent_id && game.status !== 'waiting') {
+        toast({
+          title: 'Game Already Started',
+          description: 'This game already has an opponent and has started',
+          variant: 'destructive',
+        });
+        setIsJoiningByCode(false);
+        return;
+      }
+      
       const timeControl = timeControlOptions.find(tc => tc.type === game.time_control) || timeControlOptions[0];
       onJoinGame(game.id, game.stake, timeControl);
       
@@ -156,6 +165,21 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
         variant: 'destructive',
       });
       setIsJoiningByCode(false);
+    }
+  };
+
+  const handleViewGame = (game: GameData) => {
+    // For games that are mine and have an opponent, navigate to game page
+    if (publicKey && game.host_id === publicKey.toString() && game.opponent_id) {
+      navigate(`/game/${game.id}`, {
+        state: {
+          timeControl: timeControlOptions.find(tc => tc.type === game.time_control) || timeControlOptions[0],
+          stake: game.stake,
+          playerColor: 'white',
+          gameId: game.id
+        }
+      });
+      onClose();
     }
   };
 
@@ -215,6 +239,17 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
     
     // Can only join games in waiting status
     return game.status === 'waiting';
+  };
+
+  const canViewGame = (game: GameData) => {
+    if (!publicKey) return false;
+    
+    // Can view your own game that has an opponent
+    if (isMyGame(game) && game.opponent_id && game.status === 'active') {
+      return true;
+    }
+    
+    return false;
   };
 
   return (
@@ -314,7 +349,15 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
                     </div>
                   ) : filteredGames.length > 0 ? (
                     filteredGames.map(game => (
-                      <div key={game.id} className="px-4 py-3 flex justify-between items-center hover:bg-secondary/10 transition-colors">
+                      <div 
+                        key={game.id} 
+                        className={`px-4 py-3 flex justify-between items-center ${
+                          canViewGame(game) 
+                            ? 'hover:bg-secondary/20 cursor-pointer transition-colors' 
+                            : 'hover:bg-secondary/10 transition-colors'
+                        }`}
+                        onClick={() => canViewGame(game) && handleViewGame(game)}
+                      >
                         <div className="w-1/4 truncate">
                           {formatWalletAddress(game.host_id)}
                           {isMyGame(game) && (
@@ -337,10 +380,24 @@ const JoinGameModal: React.FC<JoinGameModalProps> = ({ isOpen, onClose, onJoinGa
                           {canJoinGame(game) && (
                             <Button
                               size="sm"
-                              onClick={() => handleJoinGame(game)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleJoinGame(game);
+                              }}
                               className="whitespace-nowrap bg-solana hover:bg-solana-dark text-white text-xs py-1 h-7"
                             >
                               Join
+                            </Button>
+                          )}
+                          {canViewGame(game) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewGame(game)}
+                              className="whitespace-nowrap text-xs py-1 h-7 pl-1.5 pr-2"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                              View
                             </Button>
                           )}
                         </div>
