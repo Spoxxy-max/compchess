@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -314,7 +315,7 @@ const StakeConfirmationModal: React.FC<StakeConfirmationModalProps> = ({
               
               <div className="flex items-center justify-center py-6">
                 <div className="bg-card/80 p-6 rounded-md border-2 border-solana text-center w-full">
-                  <h3 className="text-xl font-bold mb-2">Game Code</h3>
+                  <h3 className="text-xl font-bold mb-2">Your Game Code</h3>
                   <div className="flex items-center justify-center space-x-2">
                     <p className="text-3xl font-mono tracking-wider text-solana">{gameCode}</p>
                     <Button 
